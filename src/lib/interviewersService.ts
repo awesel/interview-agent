@@ -25,7 +25,8 @@ export type InterviewerRecord = {
 };
 
 const COL = "interviewers";
-const SESS_COL = "sessions"; // candidate sessions per interviewer
+const SESS_COL = "sessions"; // candidate sessions per interviewer (deprecated)
+const ATTEMPTS_COL = "attempt_results"; // new consolidated finished attempts
 
 export async function listInterviewers(ownerUid: string): Promise<InterviewerRecord[]> {
 	const q = query(collection(db, COL), where("ownerUid", "==", ownerUid), orderBy("order", "asc"));
@@ -57,12 +58,34 @@ export async function getBySlug(slug: string): Promise<InterviewerRecord | null>
 }
 
 // Candidate session storage (simplified) ----------------------------------
+/**
+ * Deprecated incremental session creation. Prefer createFinishedAttempt.
+ */
 export async function createSession(interviewerId: string, payload: any) {
 	const ref = await addDoc(collection(db, SESS_COL), {
 		interviewerId,
 		createdAt: Date.now(),
 		...payload,
 	});
+	return ref.id;
+}
+
+export type FinishedAttempt = {
+	interviewerId: string;
+	interviewerSlug?: string;
+	scriptTitle: string;
+	startedAt: number;
+	endedAt: number;
+	durationSec: number;
+	participant?: { name?: string; email?: string; phone?: string } | null;
+	transcript: any[]; // keep raw for now
+	sections: any[];
+	artifacts?: any;
+	createdAt: number;
+};
+
+export async function createFinishedAttempt(data: FinishedAttempt) {
+	const ref = await addDoc(collection(db, ATTEMPTS_COL), data);
 	return ref.id;
 }
 

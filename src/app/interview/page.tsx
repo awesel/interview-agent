@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
+import { auth } from "@/lib/firebase";
 import { useInterview } from "@/lib/interviewStore";
 import hello from "@/../scripts/hello.json";
 import { Script, ScriptT } from "@/lib/types";
 
-export default function InterviewPage({ script }: { script?: ScriptT }) {
+export default function InterviewPage({ script, interviewerId, manualSave }: { script?: ScriptT; interviewerId?: string; manualSave?: () => void | Promise<void> }) {
   const st = useInterview();
   const [ready, setReady] = useState(false);
   const [info, setInfo] = useState({ name: "", email: "", phone: "" });
@@ -21,7 +22,34 @@ export default function InterviewPage({ script }: { script?: ScriptT }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!st.session) return null;
+  // Prefill from signed-in user (candidate) once (must be before any conditional return)
+  useEffect(()=>{
+    const u = auth.currentUser;
+    if(!u) return;
+    setInfo(prev=>({
+      name: prev.name || u.displayName || "",
+      email: prev.email || u.email || "",
+      phone: prev.phone || ""
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
+  // Auto-complete info step if we already have name + email from auth
+  useEffect(()=>{
+    if(!infoDone && info.name && info.email){
+      st.setParticipant({ ...info });
+      setInfoDone(true);
+    }
+  },[info, infoDone, st]);
+
+  // If session not yet initialized, show lightweight placeholder
+  if (!st.session) {
+    return (
+      <main className="max-w-xl mx-auto p-6 text-sm text-gray-500">
+        Initializing interview…
+      </main>
+    );
+  }
+
   if (!infoDone) {
     return (
       <main className="max-w-xl mx-auto p-6 space-y-4">
@@ -30,14 +58,14 @@ export default function InterviewPage({ script }: { script?: ScriptT }) {
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
-            if (!info.name || !info.email || !info.phone) return;
+            if (!info.name || !info.email) return;
             st.setParticipant({ ...info });
             setInfoDone(true);
           }}
         >
-          <input className="w-full border rounded-md p-2" placeholder="Full name" value={info.name} onChange={(e)=>setInfo(v=>({...v,name:e.target.value}))} />
-          <input className="w-full border rounded-md p-2" placeholder="Email" value={info.email} onChange={(e)=>setInfo(v=>({...v,email:e.target.value}))} />
-          <input className="w-full border rounded-md p-2" placeholder="Phone" value={info.phone} onChange={(e)=>setInfo(v=>({...v,phone:e.target.value}))} />
+          <input className="w-full border rounded-md p-2" placeholder="Full name" value={info.name} onChange={(e)=>setInfo(v=>({...v,name:e.target.value}))} required />
+          <input className="w-full border rounded-md p-2" placeholder="Email" type="email" value={info.email} onChange={(e)=>setInfo(v=>({...v,email:e.target.value}))} required />
+          <input className="w-full border rounded-md p-2" placeholder="Phone (optional)" value={info.phone} onChange={(e)=>setInfo(v=>({...v,phone:e.target.value}))} />
           <div className="flex justify-end"><button className="btn">Continue</button></div>
         </form>
       </main>
@@ -59,10 +87,11 @@ export default function InterviewPage({ script }: { script?: ScriptT }) {
 
         <CandidateInput />
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button className="btn" onClick={() => st.nudgeOrAdvance()}>Force Next</button>
           <button className="btn" onClick={() => downloadJSON(st.session!)}>Export JSON</button>
           <button className="btn" onClick={() => summarize(st.session?.transcript ?? [], st.setArtifacts)}>Finish & Summarize</button>
+          <button className="btn" onClick={() => { st.finish(); manualSave?.(); }}>Finish Interview</button>
         </div>
       </section>
 

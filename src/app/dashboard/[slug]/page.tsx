@@ -4,9 +4,10 @@ import { auth } from '@/lib/firebase';
 import { getBySlug, listSessions, InterviewerRecord, updateInterviewer } from '@/lib/interviewersService';
 import Link from 'next/link';
 
-export default function DashboardDetailPage({ params }: { params: { slug: string } }){
-  // Standard App Router params (sync) for dynamic route
-  const { slug } = params;
+export default function DashboardDetailPage({ params }: { params: Promise<{ slug: string }> }){
+  // unwrap promise-based params (Next.js 15+)
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const { slug } = React.use(params);
   const user = auth.currentUser;
   const [record,setRecord]=useState<InterviewerRecord|null>(null);
   const [recordLoading,setRecordLoading]=useState(true);
@@ -45,7 +46,7 @@ export default function DashboardDetailPage({ params }: { params: { slug: string
 }
 
 function DetailSidebar({ record, subTab, setSubTab, sessions }: any){
-  const share = typeof window!=='undefined'? `${window.location.origin}/interview/${record.slug}`: '';
+  const share = typeof window!=='undefined'? `${window.location.origin}/signup/candidate?next=%2Finterview%2F${record.slug}`: '';
   const Btn=({id,label}:{id:string,label:string})=> <button onClick={()=>setSubTab(id)} style={{textAlign:'left', background: subTab===id? '#fff':'#eef7ff', border:'1px solid #bcdaf3', padding:'6px 10px', fontSize:'0.6rem', borderRadius:8, cursor:'pointer', fontWeight: subTab===id?600:500}}>{label}</button>;
   return (
     <aside style={{width:230, borderRight:'1px solid #d4e6f9', padding:'1rem', display:'flex', flexDirection: 'column', gap:'1rem', background:'#f4fbff'}}>
