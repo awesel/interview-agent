@@ -47,7 +47,7 @@ export default function SharedInterview({ params }: { params: Promise<{ slug: st
   return (
     <div style={{display:'grid', gridTemplateRows:'64px 1fr 40px', minHeight:'100dvh'}}>
       <header style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 1.25rem', background:'#ffffffdd', backdropFilter:'blur(8px)', borderBottom:'1px solid #d4e6f9'}}>
-        <div style={{fontWeight:700, fontSize:'0.95rem'}}>Interview</div>
+        <div style={{fontWeight:700, fontSize:'0.95rem'}}>{script.title}</div>
         <div style={{fontSize:'0.6rem', color:'#4c6c8f'}}>Powered by AI Interview Agent</div>
       </header>
       <div style={{position:'relative'}}>

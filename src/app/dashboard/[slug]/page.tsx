@@ -1,22 +1,35 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { auth } from '@/lib/firebase';
-import { listInterviewers, getBySlug, listSessions, InterviewerRecord, updateInterviewer } from '@/lib/interviewersService';
+import { getBySlug, listSessions, InterviewerRecord, updateInterviewer } from '@/lib/interviewersService';
 import Link from 'next/link';
 
-export default function DashboardDetailPage({ params }: { params: Promise<{ slug: string }> }){
-  // unwrap params per Next.js 15 promise-based params
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { slug } = React.use(params);
+export default function DashboardDetailPage({ params }: { params: { slug: string } }){
+  // Standard App Router params (sync) for dynamic route
+  const { slug } = params;
   const user = auth.currentUser;
   const [record,setRecord]=useState<InterviewerRecord|null>(null);
-  const [loading,setLoading]=useState(true);
+  const [recordLoading,setRecordLoading]=useState(true);
   const [sessions,setSessions]=useState<any[]>([]);
+  const [sessionsLoading,setSessionsLoading]=useState(true);
   const [subTab,setSubTab]=useState<'overview'|'sessions'|'results'>('overview');
 
-  useEffect(()=>{ let cancelled=false; async function load(){ setLoading(true); try { const rec = await getBySlug(slug); if(!cancelled) setRecord(rec); if(rec) { const sess= await listSessions(rec.id, 50); if(!cancelled) setSessions(sess); } } finally { if(!cancelled) setLoading(false);} } load(); return ()=>{cancelled=true}; },[slug]);
+  useEffect(()=>{ if(!slug) return; let cancelled=false; (async function load(){
+    setRecordLoading(true); setSessionsLoading(true);
+    try {
+      const rec = await getBySlug(slug);
+      if(cancelled) return;
+      setRecord(rec);
+      setRecordLoading(false);
+      if(!rec){ setSessions([]); setSessionsLoading(false); return; }
+      // Load sessions separately without blocking showing main UI
+      try { const sess = await listSessions(rec.id, 50); if(!cancelled) setSessions(sess);} finally { if(!cancelled) setSessionsLoading(false);}    
+    } catch {
+      if(!cancelled){ setRecord(null); setRecordLoading(false); setSessionsLoading(false); }
+    }
+  })(); return ()=>{cancelled=true}; },[slug]);
 
-  if(loading) return <CenteredSpinner label='Loading interview' />;
+  if(recordLoading) return <CenteredSpinner label={`Loading ${slug.slice(0,8)}…`} />;
   if(!record) return <main style={{display:'grid', placeItems:'center', minHeight:'100dvh'}}><div className='card' style={{padding:'2rem', textAlign:'center'}}><p style={{fontSize:'0.8rem', margin:0}}>Interview not found.</p><Link href='/dashboard' style={{fontSize:'0.65rem', marginTop:12, display:'inline-block'}}>Back to Dashboard</Link></div></main>;
 
   return (
@@ -24,7 +37,7 @@ export default function DashboardDetailPage({ params }: { params: Promise<{ slug
       <DetailSidebar record={record} subTab={subTab} setSubTab={setSubTab} sessions={sessions} />
       <div style={{flex:1, minWidth:0, overflow:'auto', padding:'1.25rem 1.5rem'}}>
         {subTab==='overview' && <Overview record={record} onUpdated={(r)=>setRecord(r)} />}
-        {subTab==='sessions' && <SessionsList sessions={sessions} />}
+        {subTab==='sessions' && <SessionsList sessions={sessions} loading={sessionsLoading} />}
         {subTab==='results' && <ResultsPlaceholder record={record} />}
       </div>
     </main>
@@ -110,7 +123,8 @@ function Overview({ record, onUpdated }: { record: InterviewerRecord; onUpdated:
   );
 }
 
-function SessionsList({ sessions }: { sessions:any[] }){
+function SessionsList({ sessions, loading }: { sessions:any[]; loading:boolean }){
+  if(loading) return <div style={{fontSize:'0.6rem', color:'var(--foreground-soft)'}}>Loading sessions…</div>;
   if(sessions.length===0) return <div style={{fontSize:'0.65rem', color:'var(--foreground-soft)'}}>No sessions yet.</div>;
   return (
     <div style={{display:'grid', gap:'0.75rem'}}>

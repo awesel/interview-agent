@@ -48,8 +48,12 @@ export default function DashboardIndexPage(){
           <li key={iv.id}
             onDragOver={(e)=>{ e.preventDefault(); e.dataTransfer.dropEffect='move'; }}
             onDrop={(e)=>{ e.preventDefault(); if(dragId.current) reorder(dragId.current, iv.id); }}
-            className='card' style={{position:'relative', padding:'0.85rem 0.9rem 0.9rem', display:'grid', gap:6, opacity: draggingId===iv.id? 0.4:1, transition:'opacity 120ms'}}
+            onClick={(e)=>{ if((e.target as HTMLElement).closest('[data-drag-handle]')) return; if((e.target as HTMLElement).closest('button[data-action]')) return; if(!iv.slug) return; window.location.href=`/dashboard/${iv.slug}`; }}
+            className='card' style={{position:'relative', padding:'0.85rem 0.9rem 0.9rem', display:'grid', gap:6, opacity: draggingId===iv.id? 0.4:1, transition:'opacity 120ms', cursor: iv.slug? 'pointer':'default'}}
             data-draggable-id={iv.id}
+            role='button'
+            tabIndex={0}
+            onKeyDown={(e)=>{ if(e.key==='Enter' || e.key===' ') { e.preventDefault(); if(iv.slug) window.location.href=`/dashboard/${iv.slug}`; } }}
           >
             <div
               draggable
@@ -78,17 +82,18 @@ export default function DashboardIndexPage(){
               style={{position:'absolute', left:6, top:6, cursor:'grab', fontSize:'0.7rem', opacity:0.7, padding:'4px'}}
               aria-label='Drag to reorder'
               title='Drag to reorder'
+              data-drag-handle
             >≡</div>
-            <button onClick={()=>{ window.location.href=`/dashboard/${iv.slug}`; }} style={{all:'unset', cursor:'pointer', display:'block'}}>
-              <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', paddingLeft:20, gap:8}}>
-                <h3 style={{fontSize:'0.9rem', fontWeight:600, margin:0}}>{iv.name}</h3>
-                <button className='btn-outline' style={{fontSize:'0.55rem', padding:'2px 6px'}} onClick={(e)=>{ e.stopPropagation(); remove(iv.id); }}>Delete</button>
-              </div>
-              <div style={{fontSize:'0.55rem', color:'var(--foreground-soft)', marginTop:4, paddingLeft:20}}>{iv.slug}</div>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', paddingLeft:20, gap:8}}>
+              <h3 style={{fontSize:'0.9rem', fontWeight:600, margin:0}}>{iv.name}</h3>
+              <button data-action='delete' className='btn-outline' style={{fontSize:'0.55rem', padding:'2px 6px'}} onClick={(e)=>{ e.stopPropagation(); remove(iv.id); }}>Delete</button>
+            </div>
+            <div style={{fontSize:'0.55rem', color:'var(--foreground-soft)', marginTop:4, paddingLeft:20}}>{iv.slug || '— no slug —'}</div>
+            {iv.slug && (
               <div style={{marginTop:10, display:'flex', gap:6, flexWrap:'wrap', paddingLeft:20}}>
                 <CopyField value={`${typeof window!=='undefined'?window.location.origin:''}/interview/${iv.slug}`} />
               </div>
-            </button>
+            )}
           </li>
         ))}
       </ul>
