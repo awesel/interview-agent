@@ -2,16 +2,19 @@
 import { useEffect, useState } from "react";
 import { useInterview } from "@/lib/interviewStore";
 import hello from "@/../scripts/hello.json";
-import { Script } from "@/lib/types";
+import { Script, ScriptT } from "@/lib/types";
 
-export default function InterviewPage() {
+export default function InterviewPage({ script }: { script?: ScriptT }) {
   const st = useInterview();
   const [ready, setReady] = useState(false);
   const [info, setInfo] = useState({ name: "", email: "", phone: "" });
   const [infoDone, setInfoDone] = useState(false);
 
   useEffect(() => {
-    if (!st.session) st.start(Script.parse(hello));
+    if (!st.session) {
+      const sc = script ? script : Script.parse(hello);
+      st.start(sc);
+    }
     const id = setInterval(() => st.tick(), 1000);
     setReady(true);
     return () => clearInterval(id);

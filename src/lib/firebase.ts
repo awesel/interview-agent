@@ -1,4 +1,6 @@
 import { initializeApp, getApps } from "firebase/app";
+
+import { getAuth } from "firebase/auth";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -12,6 +14,8 @@ const firebaseConfig = {
 
 export const app = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
 
+// Convenience singletons (safe to call multiple times)
+export const auth = getAuth(app);
 // Firestore client
 export const db = getFirestore(app);
 
@@ -25,5 +29,4 @@ if (typeof window !== "undefined" && process.env.FIREBASE_EMULATORS) {
     // ignore
   }
 }
-
 
