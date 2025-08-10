@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.31.0",
     "dayjs": "^1.11.13",
     "firebase": "^12.1.0",
     "jotai": "^2.13.0",

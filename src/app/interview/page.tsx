@@ -7,6 +7,8 @@ import { Script } from "@/lib/types";
 export default function InterviewPage() {
   const st = useInterview();
   const [ready, setReady] = useState(false);
+  const [info, setInfo] = useState({ name: "", email: "", phone: "" });
+  const [infoDone, setInfoDone] = useState(false);
 
   useEffect(() => {
     if (!st.session) st.start(Script.parse(hello));
@@ -17,6 +19,27 @@ export default function InterviewPage() {
   }, []);
 
   if (!st.session) return null;
+  if (!infoDone) {
+    return (
+      <main className="max-w-xl mx-auto p-6 space-y-4">
+        <h1 className="text-2xl font-semibold">Candidate Info</h1>
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!info.name || !info.email || !info.phone) return;
+            st.session!.participant = { ...info };
+            setInfoDone(true);
+          }}
+        >
+          <input className="w-full border rounded-md p-2" placeholder="Full name" value={info.name} onChange={(e)=>setInfo(v=>({...v,name:e.target.value}))} />
+          <input className="w-full border rounded-md p-2" placeholder="Email" value={info.email} onChange={(e)=>setInfo(v=>({...v,email:e.target.value}))} />
+          <input className="w-full border rounded-md p-2" placeholder="Phone" value={info.phone} onChange={(e)=>setInfo(v=>({...v,phone:e.target.value}))} />
+          <div className="flex justify-end"><button className="btn">Continue</button></div>
+        </form>
+      </main>
+    );
+  }
   const sec = st.session.script.sections[st.currentIdx];
 
   return (
@@ -36,7 +59,7 @@ export default function InterviewPage() {
         <div className="flex gap-2">
           <button className="btn" onClick={() => st.nudgeOrAdvance()}>Force Next</button>
           <button className="btn" onClick={() => downloadJSON(st.session!)}>Export JSON</button>
-          <button className="btn" onClick={() => summarize(st)}>Finish & Summarize</button>
+          <button className="btn" onClick={() => summarize(st.session?.transcript ?? [], st.setArtifacts)}>Finish & Summarize</button>
         </div>
       </section>
 
@@ -76,15 +99,15 @@ function downloadJSON(obj: unknown) {
   URL.revokeObjectURL(url);
 }
 
-async function summarize(st: ReturnType<typeof useInterview>) {
+async function summarize(transcript: unknown[], setArtifacts: (a: any) => void) {
   const res = await fetch("/api/summarize", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ transcript: st.session?.transcript ?? [] }),
+    body: JSON.stringify({ transcript }),
   });
   if (!res.ok) return;
   const data = await res.json();
-  st.setArtifacts(data);
+  setArtifacts(data);
 }
 
 

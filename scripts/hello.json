@@ -1,20 +1,55 @@
 {
-  "title": "Demo Interview",
+  "title": "GSS-Style Open-Ended: Politics, Economics, Environment",
   "sections": [
     {
-      "id": "intro",
-      "prompt": "Briefly introduce yourself and what interests you about this role.",
-      "targetDurationSec": 60
+      "id": "politics_1",
+      "prompt": "Thinking about national politics today, what do you see as the most important problem the government should address, and why?",
+      "targetDurationSec": 90
     },
     {
-      "id": "experience",
-      "prompt": "Walk me through a challenging project you led. What was the impact?",
-      "targetDurationSec": 120
+      "id": "politics_2",
+      "prompt": "How much confidence do you have in Congress to do what is right? What experiences have shaped your view?",
+      "targetDurationSec": 90
+    },
+    {
+      "id": "politics_3",
+      "prompt": "In your own words, what does 'trust in government' mean to you, and what would increase or decrease your trust?",
+      "targetDurationSec": 90
+    },
+    {
+      "id": "economics_1",
+      "prompt": "How would you describe the current state of the economy for people like you? What factors matter most?",
+      "targetDurationSec": 90
+    },
+    {
+      "id": "economics_2",
+      "prompt": "What do you think the government's priorities should be when it comes to taxes and spending? Why?",
+      "targetDurationSec": 90
+    },
+    {
+      "id": "economics_3",
+      "prompt": "What, if anything, worries you about jobs and the cost of living over the next few years?",
+      "targetDurationSec": 90
+    },
+    {
+      "id": "environment_1",
+      "prompt": "How concerned are you about climate change? What, if anything, should government or businesses do about it?",
+      "targetDurationSec": 90
+    },
+    {
+      "id": "environment_2",
+      "prompt": "When you think about energy policy, what tradeoffs seem most important to you?",
+      "targetDurationSec": 90
+    },
+    {
+      "id": "environment_3",
+      "prompt": "In your community, what environmental issues do you notice most, and how would you like to see them addressed?",
+      "targetDurationSec": 90
     },
     {
       "id": "closing",
-      "prompt": "Any questions for us?",
-      "targetDurationSec": 45
+      "prompt": "Is there anything else about politics, the economy, or the environment that you would like to add?",
+      "targetDurationSec": 60
     }
   ]
 }

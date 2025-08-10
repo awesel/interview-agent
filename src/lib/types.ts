@@ -26,6 +26,11 @@ export type Session = {
   script: ScriptT;
   startedAt: number;
   endedAt?: number;
+  participant?: {
+    name: string;
+    email: string;
+    phone: string;
+  };
   sections: Array<{
     id: string;
     startedAt?: number;

@@ -49,7 +49,7 @@ export const useInterview = create<Store>((set, get) => ({
       },
     })),
 
-  addCandidate: (text) => {
+  addCandidate: async (text) => {
     const st = get();
     if (!st.session) return;
     const sec = st.session.script.sections[st.currentIdx];
@@ -60,12 +60,31 @@ export const useInterview = create<Store>((set, get) => ({
       sectionId: sec.id,
     });
 
-    // Simple rule-based follow-up
-    const words = text.trim().split(/\s+/).filter(Boolean);
-    const followups: string[] = [];
-    if (words.length < 10) followups.push("Could you elaborate a bit more on that?");
-    if (/[0-9]/.test(text)) followups.push("What led to those numbers? Any context or assumptions?");
-    if (followups.length > 0) get().addInterviewer(followups[0]);
+    // If <= 30s remain, skip follow-ups and move on
+    if (get().timeLeftSec <= 30) {
+      get().addInterviewer("⏱ Not enough time for follow-ups. Moving on.");
+      get().nudgeOrAdvance();
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/followups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: sec.prompt, answer: text }),
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as { followups?: string[] };
+      const list = Array.isArray(data.followups) ? data.followups : [];
+      if (list.length === 0) {
+        // No follow-ups: do nothing; candidate can proceed or time will advance
+        return;
+      }
+      // Ask first follow-up only to keep flow tight
+      get().addInterviewer(list[0]);
+    } catch {
+      // Silent failure: keep interview flowing
+    }
   },
 
   addInterviewer: (text) => {
