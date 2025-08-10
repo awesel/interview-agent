@@ -6,7 +6,7 @@ import { createFinishedAttempt } from "@/lib/interviewersService";
 import { useRouter, useSearchParams } from "next/navigation";
 import hello from "@/../scripts/hello.json";
 import { Script, ScriptT } from "@/lib/types";
-import InterviewPage from "../page"; // reuse existing interactive component for now
+import ScriptedInterviewPage from "../ScriptedInterviewPage"; // reuse existing interactive component for now
 import { useInterview } from "@/lib/interviewStore";
 
 // This wrapper fetches the interviewer script by slug; falls back to demo script if missing
@@ -21,17 +21,12 @@ export default function SharedInterview({ params }: { params: Promise<{ slug: st
   const st = useInterview();
   const router = useRouter();
   const autoSavedRef = useRef(false);
-  const [authChecked,setAuthChecked]=useState(false);
+  const [authChecked,setAuthChecked]=useState(true);
 
-  // Auth gate: redirect unauthenticated candidates to dedicated signup page
+  // Optional auth observer: do not force redirect; allow viewing/interview without sign-in
   useEffect(()=>{
-    const unsub = auth.onAuthStateChanged(u=>{
-      if(!u){
-        try { sessionStorage.setItem('candidate_next', `/interview/${slug}`); } catch{}
-        window.location.href = '/signup/candidate';
-      } else {
-        setAuthChecked(true);
-      }
+    const unsub = auth.onAuthStateChanged(_u=>{
+      setAuthChecked(true);
     });
     return ()=>unsub();
   },[slug]);
@@ -46,15 +41,18 @@ export default function SharedInterview({ params }: { params: Promise<{ slug: st
           setScript(Script.parse(hello));
           return;
         }
-  const dref = snap.docs[0];
-  const data: any = dref.data();
+        const dref = snap.docs[0];
+        const data: any = dref.data();
         const parsed = Script.parse(data.script);
         setScript(parsed);
-  setInterviewerId(dref.id);
+        setInterviewerId(dref.id);
+        setNotFound(false);
       } catch {
+        // If auth not ready yet, avoid flipping to notFound; wait for authChecked
         setNotFound(true);
       }
     }
+    if(!slug) return;
     load();
   }, [slug]);
 
@@ -96,7 +94,7 @@ export default function SharedInterview({ params }: { params: Promise<{ slug: st
     })();
   },[st.session?.endedAt, interviewerId, st.session, slug, router]);
 
-  if(!authChecked) return <CenteredSpinner label="Checking sign-in" />;
+  // No auth gating; allow access without showing auth spinner
   if (!script) return <CenteredSpinner label="Loading interview" />;
   return (
     <div style={{display:'grid', gridTemplateRows:'64px 1fr 40px', minHeight:'100dvh'}}>
@@ -113,13 +111,7 @@ export default function SharedInterview({ params }: { params: Promise<{ slug: st
             Interview not found. Showing demo script instead.
           </div>
         )}
-        <InterviewPage script={script} interviewerId={interviewerId || undefined} manualSave={(async () => {
-          if(!interviewerId || !st.session) return;
-          if(st.session.endedAt && autoSavedRef.current) return; // already saved
-          // Force finish then save immediately
-          if(!st.session.endedAt){ st.finish(); }
-          // auto-save effect will catch it; to accelerate we can duplicate logic
-        })} />
+        <ScriptedInterviewPage script={script} />
       </div>
       <footer style={{fontSize:'0.55rem', color:'#4c6c8f', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 1rem', background:'#ffffffdd', borderTop:'1px solid #d4e6f9'}}>© {new Date().getFullYear()} Interview Agent</footer>
     </div>
