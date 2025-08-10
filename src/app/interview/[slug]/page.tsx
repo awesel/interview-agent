@@ -4,7 +4,7 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, limit } from "firebase/firestore";
 import hello from "@/../scripts/hello.json";
 import { Script, ScriptT } from "@/lib/types";
-import InterviewPage from "../page"; // reuse existing interactive component for now
+import ScriptedInterviewPage from "../ScriptedInterviewPage"; // reuse existing interactive component for now
 import { useInterview } from "@/lib/interviewStore";
 
 // This wrapper fetches the interviewer script by slug; falls back to demo script if missing
@@ -56,7 +56,7 @@ export default function SharedInterview({ params }: { params: Promise<{ slug: st
             Interview not found. Showing demo script instead.
           </div>
         )}
-        <InterviewPage script={script} />
+        <ScriptedInterviewPage script={script} />
       </div>
       <footer style={{fontSize:'0.55rem', color:'#4c6c8f', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 1rem', background:'#ffffffdd', borderTop:'1px solid #d4e6f9'}}>© {new Date().getFullYear()} Interview Agent</footer>
     </div>
