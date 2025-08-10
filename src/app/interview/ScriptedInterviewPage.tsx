@@ -3,12 +3,17 @@ import { useEffect, useState } from "react";
 import { useInterview } from "@/lib/interviewStore";
 import hello from "@/../scripts/hello.json";
 import { Script, ScriptT } from "@/lib/types";
+import VoiceRecorder from "@/components/VoiceRecorder";
+import AudioPlayer from "@/components/AudioPlayer";
+import { useVoiceInterview } from "@/hooks/useVoiceInterview";
 
 export default function ScriptedInterviewPage({ script }: { script?: ScriptT }) {
   const st = useInterview();
   const [ready, setReady] = useState(false);
   const [info, setInfo] = useState({ name: "", email: "", phone: "" });
   const [infoDone, setInfoDone] = useState(false);
+  const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const voice = useVoiceInterview(isVoiceMode);
 
   useEffect(() => {
     if (!st.session) {
@@ -57,9 +62,15 @@ export default function ScriptedInterviewPage({ script }: { script?: ScriptT }) 
           <p>{sec.prompt}</p>
         </div>
 
-        <CandidateInput />
+        <CandidateInput isVoiceMode={isVoiceMode} conversationId={voice.conversationId} />
 
         <div className="flex gap-2 flex-wrap">
+          <button 
+            className={`btn ${isVoiceMode ? 'bg-green-500 text-white' : ''}`}
+            onClick={() => setIsVoiceMode(!isVoiceMode)}
+          >
+            {isVoiceMode ? '🎤 Voice Mode' : '📝 Text Mode'}
+          </button>
           <button className="btn" onClick={() => st.nudgeOrAdvance()}>Force Next</button>
           <button className="btn" onClick={() => downloadJSON(st.session!)}>Export JSON</button>
           <button className="btn" onClick={() => summarize(st.session?.transcript ?? [], st.setArtifacts)}>Finish & Summarize</button>
@@ -69,11 +80,27 @@ export default function ScriptedInterviewPage({ script }: { script?: ScriptT }) 
 
       <section className="space-y-2">
         <h2 className="text-xl font-semibold">Transcript</h2>
-        <div className="h-[70vh] overflow-auto border rounded-xl p-3 space-y-2">
+        <div className="h-[70vh] overflow-auto border rounded-xl p-3 space-y-3">
           {st.session.transcript.map((u, i) => (
             <div key={i} className="text-sm">
-              <span className="font-mono">{u.sectionId}</span>{" "}
-              <b>{u.speaker === "candidate" ? "You" : "Agent"}:</b> {u.text}
+              <div className="flex items-start gap-2">
+                <span className="font-mono text-xs text-gray-500">{u.sectionId}</span>
+                <div className="flex-1">
+                  <b>{u.speaker === "candidate" ? "You" : "Agent"}:</b> {u.text}
+                  {u.speaker === "interviewer" && isVoiceMode && (() => {
+                    const audioMessage = voice.getAudioForText(u.text);
+                    return audioMessage ? (
+                      <div className="mt-2">
+                        <AudioPlayer 
+                          messageId={audioMessage.messageId} 
+                          text={u.text}
+                          autoPlay={true}
+                        />
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -82,12 +109,65 @@ export default function ScriptedInterviewPage({ script }: { script?: ScriptT }) 
   );
 }
 
-function CandidateInput() {
+function CandidateInput({ isVoiceMode, conversationId }: { isVoiceMode: boolean; conversationId?: string | null }) {
   const st = useInterview();
   const [val, setVal] = useState("");
+
+  const handleTextSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!val) return;
+    st.addCandidate(val);
+    setVal("");
+  };
+
+  const handleVoiceTranscription = (text: string) => {
+    st.addCandidate(text);
+  };
+
+  if (isVoiceMode) {
+    return (
+      <div className="space-y-4">
+        <div className="p-4 border rounded-xl bg-blue-50">
+          <h3 className="font-medium mb-2">Voice Input</h3>
+          <VoiceRecorder 
+            onTranscription={handleVoiceTranscription}
+            conversationId={conversationId || undefined}
+            disabled={!conversationId}
+          />
+          {!conversationId && (
+            <p className="text-sm text-gray-500 mt-2">Initializing voice conversation...</p>
+          )}
+        </div>
+        
+        {/* Fallback text input */}
+        <details className="text-sm">
+          <summary className="cursor-pointer text-gray-600">Or use text input</summary>
+          <form onSubmit={handleTextSubmit} className="mt-2">
+            <textarea 
+              value={val} 
+              onChange={(e) => setVal(e.target.value)} 
+              className="w-full p-3 border rounded-xl" 
+              rows={2} 
+              placeholder="Type your answer here..." 
+            />
+            <div className="mt-2 flex justify-end">
+              <button className="btn">Send Text</button>
+            </div>
+          </form>
+        </details>
+      </div>
+    );
+  }
+
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (!val) return; st.addCandidate(val); setVal(""); }}>
-      <textarea value={val} onChange={(e) => setVal(e.target.value)} className="w-full p-3 border rounded-xl" rows={3} placeholder="Answer here..." />
+    <form onSubmit={handleTextSubmit}>
+      <textarea 
+        value={val} 
+        onChange={(e) => setVal(e.target.value)} 
+        className="w-full p-3 border rounded-xl" 
+        rows={3} 
+        placeholder="Answer here..." 
+      />
       <div className="mt-2 flex justify-end">
         <button className="btn">Send</button>
       </div>
