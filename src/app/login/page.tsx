@@ -1,15 +1,31 @@
 "use client";
 import { useEffect, useState } from "react";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
-import { app } from "@/lib/firebase";
+import { app, db } from "@/lib/firebase";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import type { DbUser } from "@/lib/types";
 
 export default function LoginPage() {
   const [user, setUser] = useState<null | { displayName: string | null; email: string | null }>(null);
   useEffect(() => {
     const auth = getAuth(app);
-    return onAuthStateChanged(auth, (u) => {
-      if (u) setUser({ displayName: u.displayName, email: u.email });
-      else setUser(null);
+    return onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        setUser({ displayName: u.displayName, email: u.email });
+        // Upsert user in Firestore
+        const data: DbUser = {
+          uid: u.uid,
+          email: u.email || "",
+          displayName: u.displayName || "",
+          photoURL: u.photoURL || undefined,
+          provider: "google",
+          createdAt: Date.now(),
+          lastLoginAt: Date.now(),
+        };
+        await setDoc(doc(db, "users", u.uid), data, { merge: true });
+      } else {
+        setUser(null);
+      }
     });
   }, []);
 

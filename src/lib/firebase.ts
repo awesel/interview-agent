@@ -1,4 +1,5 @@
 import { initializeApp, getApps } from "firebase/app";
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -10,5 +11,19 @@ const firebaseConfig = {
 };
 
 export const app = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
+
+// Firestore client
+export const db = getFirestore(app);
+
+// Optional: connect to Firestore emulator when enabled
+if (typeof window !== "undefined" && process.env.FIREBASE_EMULATORS) {
+  try {
+    connectFirestoreEmulator(db, "127.0.0.1", 8080);
+    // eslint-disable-next-line no-console
+    console.info("Connected to Firestore emulator at 127.0.0.1:8080");
+  } catch {
+    // ignore
+  }
+}
 
 
