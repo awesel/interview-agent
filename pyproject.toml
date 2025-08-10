@@ -5,6 +5,13 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.116.1",
+    "librosa>=0.11.0",
     "modal>=1.1.1",
+    "numpy>=2.2.6",
+    "python-multipart>=0.0.20",
     "requests>=2.32.4",
+    "soundfile>=0.13.1",
+    "uvicorn>=0.35.0",
+    "websockets>=15.0.1",
 ]

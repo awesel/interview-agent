@@ -106,40 +106,56 @@ async def call_tts_service(text: str) -> Optional[str]:
         logger.error(f"TTS error: {e}")
         return None
 
-async def stream_transcription(websocket: WebSocket, audio_chunks: List[bytes]) -> str:
-    """Stream audio to Parakeet and get transcription."""
+async def call_stt_service(audio_file_path: str) -> Optional[str]:
+    """Call the Parakeet STT service and return transcribed text."""
     try:
-        # Connect to Parakeet WebSocket
-        async with websockets.connect(PARAKEET_STT_WS_URL.replace("wss://", "ws://")) as parakeet_ws:
+        logger.info(f"Transcribing audio: {audio_file_path}")
+        
+        # Process audio file to the format expected by Parakeet
+        processed_audio = await process_audio_for_parakeet(audio_file_path)
+        if not processed_audio:
+            logger.error("Failed to process audio")
+            return None
+        
+        # Use Modal to call the Parakeet transcribe method directly
+        import modal
+        
+        try:
+            # Get the Parakeet class and call transcribe
+            parakeet = modal.Cls.from_name("example-parakeet", "Parakeet")
             
-            # Send audio chunks
-            for chunk in audio_chunks:
-                await parakeet_ws.send(chunk)
+            # Call transcription with processed audio bytes
+            result = parakeet().transcribe.remote(processed_audio)
             
-            # Send end of stream marker
-            await parakeet_ws.send(b"END_OF_STREAM_8f13d09")
+            logger.info(f"Transcription result: {result}")
+            return result
             
-            # Collect transcription results
-            transcription_parts = []
-            while True:
-                try:
-                    message = await parakeet_ws.recv()
-                    if message == b"END_OF_STREAM_8f13d09":
-                        break
-                    if isinstance(message, str):
-                        transcription_parts.append(message)
-                        # Send partial transcription to client
-                        await websocket.send_json({
-                            "type": "partial_transcription",
-                            "text": message
-                        })
-                except websockets.exceptions.ConnectionClosed:
-                    break
-            
-            return " ".join(transcription_parts)
-            
+        except Exception as modal_error:
+            logger.error(f"Modal call failed: {modal_error}")
+            return None
+        
     except Exception as e:
-        logger.error(f"STT streaming error: {e}")
+        logger.error(f"Error calling STT service: {e}")
+        return None
+
+async def process_audio_for_parakeet(audio_file_path: str) -> Optional[bytes]:
+    """Process audio file to int16 format expected by Parakeet."""
+    try:
+        import librosa
+        import numpy as np
+        import soundfile as sf
+        
+        # Load audio file
+        audio, sample_rate = librosa.load(audio_file_path, sr=16000, mono=True)
+        
+        # Convert to int16 format expected by Parakeet
+        audio_int16 = (audio * 32767).astype(np.int16)
+        
+        # Convert to bytes
+        return audio_int16.tobytes()
+        
+    except Exception as e:
+        logger.error(f"Audio processing error: {e}")
         return None
 
 def generate_interview_response(conversation_id: str, user_input: str) -> str:
@@ -196,6 +212,42 @@ async def text_to_speech(conversation_id: str, text: str):
         "audio_url": f"/audio/{message['id']}",
         "timestamp": message["timestamp"]
     }
+
+@app.post("/conversation/{conversation_id}/transcribe")
+async def transcribe_audio(conversation_id: str, audio: UploadFile = File(...)):
+    """Transcribe uploaded audio file."""
+    if not audio.content_type or not audio.content_type.startswith("audio/"):
+        raise HTTPException(status_code=400, detail="Invalid audio file")
+    
+    # Save uploaded file temporarily
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
+        content = await audio.read()
+        temp_file.write(content)
+        temp_path = temp_file.name
+    
+    try:
+        # Transcribe audio
+        transcribed_text = await call_stt_service(temp_path)
+        if not transcribed_text:
+            raise HTTPException(status_code=500, detail="Failed to transcribe audio")
+        
+        # Add message to conversation
+        message = conversation_manager.add_message(
+            conversation_id, "user", transcribed_text
+        )
+        
+        return {
+            "message_id": message["id"],
+            "text": transcribed_text,
+            "timestamp": message["timestamp"]
+        }
+        
+    finally:
+        # Clean up temporary file
+        try:
+            os.unlink(temp_path)
+        except:
+            pass
 
 @app.get("/audio/{message_id}")
 async def get_audio(message_id: str):
