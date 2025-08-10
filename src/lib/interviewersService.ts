@@ -50,11 +50,20 @@ export async function updateInterviewer(id: string, patch: Partial<Pick<Intervie
 }
 
 export async function getBySlug(slug: string): Promise<InterviewerRecord | null> {
-	const q = query(collection(db, COL), where("slug", "==", slug), limit(1));
-	const snap = await getDocs(q);
-	if (snap.empty) return null;
-	const d = snap.docs[0];
-	return { id: d.id, ...(d.data() as any) };
+    // Try lookup by `slug` field first (new records)
+    const q = query(collection(db, COL), where("slug", "==", slug), limit(1));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+        const d = snap.docs[0];
+        return { id: d.id, ...(d.data() as any) };
+    }
+    // Fallback: support older records that used document ID as slug
+    const ref = doc(db, COL, slug);
+    const byId = await getDoc(ref);
+    if (byId.exists()) {
+        return { id: byId.id, ...(byId.data() as any) } as InterviewerRecord;
+    }
+    return null;
 }
 
 // Candidate session storage (simplified) ----------------------------------
@@ -95,11 +104,34 @@ export async function listSessions(interviewerId: string, limitN = 25) {
 	return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
 }
 
-export async function getSession(id: string) {
-	const ref = doc(db, SESS_COL, id);
-	const snap = await getDoc(ref);
-	if (!snap.exists()) return null;
-	return { id: snap.id, ...(snap.data() as any) };
+// New API: list finished attempts from `attempt_results`
+export async function listAttempts(interviewerId: string, limitN = 25) {
+  try {
+    const qOrdered = query(
+      collection(db, ATTEMPTS_COL),
+      where('interviewerId', '==', interviewerId),
+      orderBy('createdAt', 'desc'),
+      limit(limitN)
+    );
+    const snap = await getDocs(qOrdered);
+    return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+  } catch (err: any) {
+    // Graceful fallback when composite index is missing
+    const msg = String(err?.message || '');
+    if (err?.code === 'failed-precondition' || /index/i.test(msg)) {
+      const qFallback = query(
+        collection(db, ATTEMPTS_COL),
+        where('interviewerId', '==', interviewerId),
+        limit(limitN)
+      );
+      const snap = await getDocs(qFallback);
+      const items = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      // Client-side sort to mimic the intended order
+      items.sort((a: any, b: any) => (b?.createdAt || 0) - (a?.createdAt || 0));
+      return items;
+    }
+    throw err;
+  }
 }
 
 // Utility

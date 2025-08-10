@@ -221,5 +221,3 @@ async function summarize(transcript: unknown[], setArtifacts: (a: any) => void) 
   const data = await res.json();
   setArtifacts(data);
 }
-
-
