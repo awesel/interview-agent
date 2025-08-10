@@ -1,0 +1,22 @@
+{
+  "title": "Demo Interview",
+  "sections": [
+    {
+      "id": "intro",
+      "prompt": "Briefly introduce yourself and what interests you about this role.",
+      "targetDurationSec": 60
+    },
+    {
+      "id": "experience",
+      "prompt": "Walk me through a challenging project you led. What was the impact?",
+      "targetDurationSec": 120
+    },
+    {
+      "id": "closing",
+      "prompt": "Any questions for us?",
+      "targetDurationSec": 45
+    }
+  ]
+}
+
+
