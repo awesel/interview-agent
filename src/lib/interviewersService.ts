@@ -104,23 +104,34 @@ export async function listSessions(interviewerId: string, limitN = 25) {
 	return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
 }
 
-export async function getSession(id: string) {
-	const ref = doc(db, SESS_COL, id);
-	const snap = await getDoc(ref);
-	if (!snap.exists()) return null;
-	return { id: snap.id, ...(snap.data() as any) };
-}
-
 // New API: list finished attempts from `attempt_results`
 export async function listAttempts(interviewerId: string, limitN = 25) {
-  const q = query(
-    collection(db, ATTEMPTS_COL),
-    where('interviewerId', '==', interviewerId),
-    orderBy('createdAt', 'desc'),
-    limit(limitN)
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+  try {
+    const qOrdered = query(
+      collection(db, ATTEMPTS_COL),
+      where('interviewerId', '==', interviewerId),
+      orderBy('createdAt', 'desc'),
+      limit(limitN)
+    );
+    const snap = await getDocs(qOrdered);
+    return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+  } catch (err: any) {
+    // Graceful fallback when composite index is missing
+    const msg = String(err?.message || '');
+    if (err?.code === 'failed-precondition' || /index/i.test(msg)) {
+      const qFallback = query(
+        collection(db, ATTEMPTS_COL),
+        where('interviewerId', '==', interviewerId),
+        limit(limitN)
+      );
+      const snap = await getDocs(qFallback);
+      const items = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      // Client-side sort to mimic the intended order
+      items.sort((a: any, b: any) => (b?.createdAt || 0) - (a?.createdAt || 0));
+      return items;
+    }
+    throw err;
+  }
 }
 
 // Utility
