@@ -1,20 +1,37 @@
 "use client";
 import { useEffect, useState } from "react";
-import { GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { useRouter, useSearchParams } from "next/navigation";
+
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
+import { app, db } from "@/lib/firebase";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import type { DbUser } from "@/lib/types";
+
 
 export default function LoginPage() {
   const [user, setUser] = useState<null | { displayName: string | null; email: string | null }>(null);
   const router = useRouter();
   const sp = useSearchParams();
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged((u) => {
+    const auth = getAuth(app);
+    return onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUser({ displayName: u.displayName, email: u.email });
+        // Upsert user in Firestore
+        const data: DbUser = {
+          uid: u.uid,
+          email: u.email || "",
+          displayName: u.displayName || "",
+          photoURL: u.photoURL || undefined,
+          provider: "google",
+          createdAt: Date.now(),
+          lastLoginAt: Date.now(),
+        };
+        await setDoc(doc(db, "users", u.uid), data, { merge: true });
         const next = sp.get("next") || "/dashboard";
         router.replace(next);
-      } else setUser(null);
+      } else {
+        setUser(null);
+      }
     });
     return () => unsub();
   }, [router, sp]);

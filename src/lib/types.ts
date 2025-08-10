@@ -47,3 +47,54 @@ export type Session = {
 };
 
 
+// ===============================
+// Firestore document shapes
+// ===============================
+
+export type DbUser = {
+  uid: string; // Document ID must equal this uid
+  email: string;
+  displayName: string;
+  photoURL?: string;
+  provider: "google";
+  createdAt: number; // Firestore Timestamp.toMillis()
+  lastLoginAt: number; // Firestore Timestamp.toMillis()
+  roles?: Array<"admin" | "interviewer" | "candidate">;
+  interviewsCreatedCount?: number;
+  interviewsTakenCount?: number;
+};
+
+export type DbInterview = {
+  id: string; // Document ID; short, unique slug used in URLs
+  ownerUid: string; // Creator uid
+  title: string;
+  script: ScriptT; // Embedded script for immutability per version
+  visibility: "private" | "unlisted" | "public";
+  status: "draft" | "active" | "archived";
+  createdAt: number;
+  updatedAt: number;
+  respondentCount?: number;
+  settings?: {
+    maxDurationSec?: number;
+    followupsEnabled?: boolean;
+  };
+};
+
+export type DbAttempt = {
+  id: string; // Attempt/session id
+  interviewId: string;
+  ownerUid: string; // Redundant owner uid for efficient queries
+  candidateUid: string; // Signed-in user taking the interview
+  participantSnapshot: {
+    name?: string;
+    email?: string;
+    photoURL?: string;
+  };
+  startedAt: number;
+  endedAt?: number;
+  transcript: Utterance[];
+  sections: Session["sections"]; // Progress timestamps
+  artifacts?: Session["artifacts"]; // Summaries, insights, scores
+};
+
+

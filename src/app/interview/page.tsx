@@ -31,7 +31,7 @@ export default function InterviewPage({ script }: { script?: ScriptT }) {
           onSubmit={(e) => {
             e.preventDefault();
             if (!info.name || !info.email || !info.phone) return;
-            st.session!.participant = { ...info };
+            st.setParticipant({ ...info });
             setInfoDone(true);
           }}
         >
