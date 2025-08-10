@@ -1,8 +1,6 @@
 "use client";
 import { create } from "zustand";
 import { ScriptT, Session, Utterance } from "@/lib/types";
-import { db } from "@/lib/firebase";
-import { addDoc, collection, doc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 
 type Store = {
   session?: Session;
@@ -40,9 +38,7 @@ export const useInterview = create<Store>((set, get) => ({
       timeLeftSec: script.sections[0].targetDurationSec,
       ticking: true,
     });
-    // Create/merge attempt document immediately so subsequent writes succeed
-    void ensureAttemptCreated();
-    // Open with the first prompt
+  // Open with the first prompt (no remote writes until finish)
     get().addInterviewer(script.sections[0].prompt);
   },
 
@@ -59,13 +55,6 @@ export const useInterview = create<Store>((set, get) => ({
     if (!st.session) return;
     const sec = st.session.script.sections[st.currentIdx];
     get().addUtterance({
-      speaker: "candidate",
-      text,
-      atMs: Date.now(),
-      sectionId: sec.id,
-    });
-    // Persist immediately
-    void saveUtterance({
       speaker: "candidate",
       text,
       atMs: Date.now(),
@@ -110,8 +99,7 @@ export const useInterview = create<Store>((set, get) => ({
       sectionId: sec.id,
     };
     get().addUtterance(u);
-    // Persist immediately (fire-and-forget)
-    void saveUtterance(u);
+  // (No-op remote persistence until finish)
   },
 
   tick: () => {
@@ -155,75 +143,7 @@ export const useInterview = create<Store>((set, get) => ({
     })),
 }));
 
-// ===============================
-// Firestore persistence helpers
-// ===============================
-
-async function ensureAttemptCreated(): Promise<void> {
-  const st = useInterview.getState();
-  const session = st.session;
-  if (!session) return;
-  const attemptRef = doc(db, "attempts", session.id);
-  const base = {
-    id: session.id,
-    startedAt: session.startedAt,
-    endedAt: session.endedAt ?? null,
-    sections: session.sections,
-    participantSnapshot: session.participant ?? null,
-    scriptTitle: session.script.title,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  } as const;
-  try {
-    await setDoc(attemptRef, base, { merge: true });
-  } catch {
-    // ignore
-  }
-}
-
-async function saveUtterance(u: Utterance): Promise<void> {
-  const st = useInterview.getState();
-  const session = st.session;
-  if (!session) return;
-  const col = collection(db, "attempts", session.id, "transcript");
-  try {
-    await addDoc(col, {
-      ...u,
-      createdAt: serverTimestamp(),
-    });
-    // Update attempt updatedAt
-    await updateDoc(doc(db, "attempts", session.id), { updatedAt: serverTimestamp() });
-  } catch {
-    // ignore
-  }
-}
-
-// Keep attempt doc in sync for participant, artifacts, and end state
-useInterview.subscribe((st, prev) => {
-  const session = st.session;
-  const prevSession = prev.session;
-  if (!session) return;
-  // Participant
-  if (session.participant && session.participant !== prevSession?.participant) {
-    void updateDoc(doc(db, "attempts", session.id), {
-      participantSnapshot: session.participant,
-      updatedAt: serverTimestamp(),
-    }).catch(() => {});
-  }
-  // Artifacts
-  if (session.artifacts && session.artifacts !== prevSession?.artifacts) {
-    void updateDoc(doc(db, "attempts", session.id), {
-      artifacts: session.artifacts,
-      updatedAt: serverTimestamp(),
-    }).catch(() => {});
-  }
-  // Ended
-  if (session.endedAt && session.endedAt !== prevSession?.endedAt) {
-    void updateDoc(doc(db, "attempts", session.id), {
-      endedAt: session.endedAt,
-      updatedAt: serverTimestamp(),
-    }).catch(() => {});
-  }
-});
+// All Firestore interaction removed; session persists only in-memory until finish,
+// at which point /app/interview/[slug]/page.tsx will write a single consolidated record.
 
 

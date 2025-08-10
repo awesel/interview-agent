@@ -85,7 +85,7 @@ function ProfilePill(){
 	const label = user.displayName || user.email || 'You';
 	async function doLogout(){
 		await signOut(auth);
-		router.push('/login');
+		router.push('/signup/interviewer');
 	}
 	return (
 		<div ref={ref} style={{position:'relative'}}>

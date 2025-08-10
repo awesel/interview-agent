@@ -4,8 +4,9 @@ import { useAuth } from "@/lib/useAuth";
 import { ReactNode, useEffect } from "react";
 
 const publicRoutes = new Set([
-  "/login",
-  "/interview", // candidate dynamic will also be handled minimally
+  "/signup/candidate",
+  "/signup/interviewer",
+  "/interview", // base listing / fallback
 ]);
 
 export function AuthGate({ children }: { children: ReactNode }) {
@@ -16,7 +17,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading) return;
     if (!user && !isPublic(pathname)) {
-      router.replace("/login?next=" + encodeURIComponent(pathname));
+      if(pathname.startsWith('/interview/')){
+        router.replace(`/signup/candidate?next=${encodeURIComponent(pathname)}`);
+      } else {
+        router.replace(`/signup/interviewer?next=${encodeURIComponent(pathname)}`);
+      }
     }
   }, [user, loading, pathname, router]);
 
@@ -29,6 +34,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
 function isPublic(path: string) {
   if (publicRoutes.has(path)) return true;
-  if (path.startsWith("/interview/")) return true; // shared candidate link
+  if (path.startsWith("/interview/")) return true; // candidate links public (own gating inside)
+  if (path.startsWith("/signup/")) return true;
   return false;
 }
