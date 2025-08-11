@@ -57,6 +57,8 @@ export const useInterview = create<Store>((set, get) => ({
   addCandidate: async (text) => {
     const st = get();
     if (!st.session) return;
+    // Do not accept answers after interview finished
+    if (st.session.endedAt) return;
     const sec = st.session.script.sections[st.currentIdx];
     get().addUtterance({
       speaker: "candidate",
@@ -66,16 +68,26 @@ export const useInterview = create<Store>((set, get) => ({
     });
     const timeLeft = get().timeLeftSec;
     const expired = get().expired || timeLeft <= 0;
+    const isLastSection = st.currentIdx === st.session.script.sections.length - 1;
 
     // If section time fully expired: advance (or finish) after recording answer (no follow-ups)
     if (expired) {
-      get().nudgeOrAdvance();
+      if (isLastSection) {
+        // Directly finish instead of emitting a synthetic "Moving on" plus next prompt
+        get().finish();
+      } else {
+        get().nudgeOrAdvance();
+      }
       return;
     }
 
     // If within final 30s window (but not expired), suppress follow-ups but stay on question
     if (timeLeft <= 30) {
-      return; // Do not generate follow-ups, await further candidate input or expiration
+      if (isLastSection) {
+        // If we're on the last section and in the final window, auto-finish to avoid idle waiting
+        get().finish();
+      }
+      return; // Do not generate follow-ups, await further candidate input or automatic finish
     }
 
     try {
@@ -89,6 +101,7 @@ export const useInterview = create<Store>((set, get) => ({
       const list = Array.isArray(data.followups) ? data.followups : [];
       if (list.length === 0) {
         // No follow-ups: do nothing; candidate can proceed or time will advance
+        // If last section and no follow-ups and ample time left, optionally keep open for more detail.
         return;
       }
       // Ask first follow-up only to keep flow tight

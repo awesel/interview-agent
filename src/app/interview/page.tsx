@@ -75,12 +75,13 @@ export default function InterviewPage() {
     );
   }
   const sec = st.session.script.sections[st.currentIdx];
+  const shortId = (id: string) => id.length > 18 ? id.slice(0, 15) + "…" : id;
 
   return (
     <main className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
       <section className="space-y-4">
         <h1 className="text-2xl font-semibold">{st.session.script.title}</h1>
-        <div className="text-lg">Section: {sec.id}</div>
+  <div className="text-lg">Section: {shortId(sec.id)}</div>
   {/* Timer hidden to keep timing implicit */}
 
         <div className="p-4 rounded-xl border">
@@ -110,7 +111,7 @@ export default function InterviewPage() {
           {st.session.transcript.map((u, i) => (
             <div key={i} className="text-sm">
               <div className="flex items-start gap-2">
-                <span className="font-mono text-xs text-gray-500">{u.sectionId}</span>
+                <span className="font-mono text-xs text-gray-500" title={u.sectionId}>{shortId(u.sectionId)}</span>
                 <div className="flex-1">
                   <b>{u.speaker === "candidate" ? "You" : "Agent"}:</b> {u.text}
                   {u.speaker === "interviewer" && isVoiceMode && (() => {
