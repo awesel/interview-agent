@@ -260,85 +260,105 @@ async def get_audio(message_id: str):
     raise HTTPException(status_code=404, detail="Audio not found")
 
 # WebSocket Endpoint for Real-time Conversation
-@app.websocket("/conversation/{conversation_id}/stream")
-async def conversation_stream(websocket: WebSocket, conversation_id: str):
-    """Real-time conversation stream with audio."""
+@app.websocket("/conversation/{conversation_id}/stt-stream")
+async def stt_stream(websocket: WebSocket, conversation_id: str):
+    """Real-time STT streaming using Parakeet WebSocket."""
     await websocket.accept()
-    active_connections[conversation_id] = websocket
+    logger.info(f"STT WebSocket connected for conversation {conversation_id}")
+    
+    # Connect to Parakeet WebSocket
+    parakeet_ws = None
+    transcription_parts = []
     
     try:
-        # Send welcome message
-        await websocket.send_json({
-            "type": "connected",
-            "conversation_id": conversation_id,
-            "message": "Connected to interview session"
-        })
+        import websockets
         
-        while True:
-            # Receive message from client
-            data = await websocket.receive_json()
-            message_type = data.get("type")
-            
-            if message_type == "start_recording":
-                await websocket.send_json({
-                    "type": "recording_started",
-                    "message": "You may begin speaking..."
-                })
-                
-            elif message_type == "audio_chunk":
-                # Handle streaming audio data
-                # Note: In real implementation, you'd collect chunks and process them
-                audio_data = data.get("data")  # Base64 encoded audio
-                
-                # For now, send acknowledgment
-                await websocket.send_json({
-                    "type": "audio_received",
-                    "message": "Processing audio..."
-                })
-                
-            elif message_type == "audio_complete":
-                # Process complete audio and generate response
-                # This would integrate with your streaming transcription
-                
-                # Simulate transcription (replace with actual streaming)
-                user_text = "This is a simulated transcription"
-                
-                # Add user message
-                user_message = conversation_manager.add_message(
-                    conversation_id, "user", user_text
-                )
-                
-                await websocket.send_json({
-                    "type": "transcription_complete",
-                    "text": user_text,
-                    "message_id": user_message["id"]
-                })
-                
-                # Generate response
-                response_text = generate_interview_response(conversation_id, user_text)
-                
-                # Generate speech
-                audio_path = await call_tts_service(response_text)
-                
-                # Add assistant message
-                assistant_message = conversation_manager.add_message(
-                    conversation_id, "assistant", response_text, audio_path
-                )
-                
-                await websocket.send_json({
-                    "type": "response_ready",
-                    "text": response_text,
-                    "audio_url": f"/audio/{assistant_message['id']}",
-                    "message_id": assistant_message["id"]
-                })
-                
-    except WebSocketDisconnect:
-        logger.info(f"Client disconnected from conversation {conversation_id}")
+        # Connect to Parakeet WebSocket
+        parakeet_ws_url = "wss://ryanrong24--example-parakeet-parakeet-web.modal.run/ws"
+        parakeet_ws = await websockets.connect(parakeet_ws_url)
+        logger.info(f"Connected to Parakeet WebSocket")
+        
+        async def forward_to_parakeet():
+            """Forward audio from client to Parakeet"""
+            try:
+                while True:
+                    # Receive message from client (could be bytes or text)
+                    message = await websocket.receive()
+                    
+                    if "bytes" in message:
+                        # Binary audio data
+                        audio_data = message["bytes"]
+                        await parakeet_ws.send(audio_data)
+                    elif "text" in message:
+                        # Text message (like END_OF_STREAM marker)
+                        text_data = message["text"]
+                        if text_data == "END_OF_STREAM_8f13d09":
+                            # Forward end marker to Parakeet
+                            await parakeet_ws.send(text_data.encode())
+                            break
+                    else:
+                        logger.warning(f"Unknown message format: {message}")
+                    
+            except Exception as e:
+                logger.error(f"Error forwarding to Parakeet: {e}")
+        
+        async def receive_from_parakeet():
+            """Receive transcription from Parakeet and forward to client"""
+            try:
+                while True:
+                    message = await parakeet_ws.recv()
+                    
+                    if isinstance(message, bytes):
+                        if message == b"END_OF_STREAM_8f13d09":
+                            # Finalize transcription
+                            final_text = " ".join(transcription_parts).strip()
+                            if final_text:
+                                # Add to conversation
+                                conversation_manager.add_message(
+                                    conversation_id, "user", final_text
+                                )
+                                
+                                # Send final transcription to client
+                                await websocket.send_json({
+                                    "type": "transcription_final",
+                                    "text": final_text
+                                })
+                            break
+                    else:
+                        # Transcription text
+                        transcription_text = str(message)
+                        if transcription_text.strip():
+                            transcription_parts.append(transcription_text)
+                            
+                            # Send partial transcription to client
+                            await websocket.send_json({
+                                "type": "transcription_partial", 
+                                "text": transcription_text,
+                                "accumulated": " ".join(transcription_parts)
+                            })
+                            
+            except Exception as e:
+                logger.error(f"Error receiving from Parakeet: {e}")
+        
+        # Run both directions concurrently
+        await asyncio.gather(
+            forward_to_parakeet(),
+            receive_from_parakeet()
+        )
+        
     except Exception as e:
-        logger.error(f"WebSocket error: {e}")
+        logger.error(f"STT WebSocket error: {e}")
+        try:
+            await websocket.send_json({
+                "type": "error",
+                "message": "STT service error"
+            })
+        except:
+            pass
     finally:
-        if conversation_id in active_connections:
-            del active_connections[conversation_id]
+        if parakeet_ws:
+            await parakeet_ws.close()
+        logger.info(f"STT WebSocket closed for conversation {conversation_id}")
 
 # Health check
 @app.get("/health")
