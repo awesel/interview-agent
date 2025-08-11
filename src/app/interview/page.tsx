@@ -13,7 +13,7 @@ export default function InterviewPage({ script, interviewerId, manualSave }: { s
   const [ready, setReady] = useState(false);
   const [info, setInfo] = useState({ name: "", email: "" });
   const [infoDone, setInfoDone] = useState(false);
-  const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const [isVoiceMode, setIsVoiceMode] = useState(true);
   const voice = useVoiceInterview(isVoiceMode);
 
   useEffect(() => {
