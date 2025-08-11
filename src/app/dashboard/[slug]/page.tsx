@@ -1,10 +1,25 @@
 "use client";
 import React, { useEffect, useMemo, useState } from 'react';
 import { auth } from '@/lib/firebase';
-import { getBySlug, listAttempts, InterviewerRecord, updateInterviewer } from '@/lib/interviewersService';
+import { getBySlug, listAttempts, InterviewerRecord, updateInterviewer, FinishedAttempt } from '@/lib/interviewersService';
 import Link from 'next/link';
-import { ScriptT, Utterance } from '@/lib/types';
+import { ScriptT, Utterance, Session } from '@/lib/types';
 import ScriptForm from '@/components/ScriptForm';
+
+// Local session type for display purposes
+export type DisplaySession = {
+  id: string;
+  createdAt: number;
+  transcript?: Array<Utterance>;
+  participant?: {
+    email?: string;
+    name?: string;
+  };
+  participantSnapshot?: {
+    email?: string;
+    name?: string;
+  };
+};
 
 export default function DashboardDetailPage({ params }: { params: Promise<{ slug: string }> }){
   // unwrap promise-based params (Next.js 15+)
@@ -14,25 +29,9 @@ export default function DashboardDetailPage({ params }: { params: Promise<{ slug
   const [record,setRecord]=useState<InterviewerRecord|null>(null);
   const [recordLoading,setRecordLoading]=useState(true);
   const [loadError,setLoadError]=useState<string|null>(null);
-  interface Session {
-  id: string;
-  createdAt: string;
-  transcript?: Array<{
-    speaker: 'candidate' | 'interviewer';
-    text?: string;
-    sectionId?: string;
-  }>;
-  participant?: {
-    email?: string;
-    name?: string;
-  };
-  participantSnapshot?: {
-    email?: string;
-    name?: string;
-  };
-}
 
-const [sessions,setSessions]=useState<Session[]>([]);
+
+const [sessions,setSessions]=useState<DisplaySession[]>([]);
   const [sessionsLoading,setSessionsLoading]=useState(true);
   const [subTab,setSubTab]=useState<'overview'|'sessions'|'results'>('overview');
 
@@ -47,7 +46,20 @@ const [sessions,setSessions]=useState<Session[]>([]);
       setRecordLoading(false);
       if(!rec){ setSessions([]); setSessionsLoading(false); return; }
       // Load attempts (finished sessions) from new backend without blocking showing main UI
-      try { const attempts = await listAttempts(rec.id, 50); if(!cancelled) setSessions(attempts);} catch {
+      try { 
+        const attempts = await listAttempts(rec.id, 50); 
+        if(!cancelled) {
+          // Map FinishedAttempt to Session format
+          const mappedSessions = attempts.map(a => ({
+            id: String(a.interviewerId), // Use interviewerId as fallback
+            createdAt: a.createdAt,
+            transcript: a.transcript || [],
+            participant: a.participant,
+            participantSnapshot: a.participant // For backward compatibility
+          } as DisplaySession));
+          setSessions(mappedSessions);
+        }
+      } catch {
         // keep record visible even if attempts fail (e.g., permissions)
         if(!cancelled) setLoadError('Failed to load attempts');
       } finally { if(!cancelled) setSessionsLoading(false);}    
@@ -76,12 +88,12 @@ interface DetailSidebarProps {
   record: InterviewerRecord;
   subTab: 'overview' | 'sessions' | 'results';
   setSubTab: (tab: 'overview' | 'sessions' | 'results') => void;
-  sessions: Session[];
+  sessions: DisplaySession[];
 }
 
 function DetailSidebar({ record, subTab, setSubTab, sessions }: DetailSidebarProps){
   const share = typeof window!=='undefined'? `${window.location.origin}/signup/candidate?next=%2Finterview%2F${record.slug}`: '';
-  const Btn=({id,label}:{id:string,label:string})=> <button onClick={()=>setSubTab(id)} style={{textAlign:'left', background: subTab===id? '#fff':'#eef7ff', border:'1px solid #bcdaf3', padding:'6px 10px', fontSize:'0.6rem', borderRadius:8, cursor:'pointer', fontWeight: subTab===id?600:500}}>{label}</button>;
+  const Btn=({id,label}:{id:'overview'|'sessions'|'results',label:string})=> <button onClick={()=>setSubTab(id)} style={{textAlign:'left', background: subTab===id? '#fff':'#eef7ff', border:'1px solid #bcdaf3', padding:'6px 10px', fontSize:'0.6rem', borderRadius:8, cursor:'pointer', fontWeight: subTab===id?600:500}}>{label}</button>;
   return (
     <aside style={{width:230, borderRight:'1px solid #d4e6f9', padding:'1rem', display:'flex', flexDirection: 'column', gap:'1rem', background:'#f4fbff'}}>
       <div style={{display:'grid', gap:6}}>
@@ -128,7 +140,7 @@ function Overview({ record, onUpdated }: { record: InterviewerRecord; onUpdated:
       onUpdated({...record, script: parsed});
       setEdit(false);
     } catch(e){
-      setError(e.message||'Failed to save');
+      setError((e as Error)?.message || 'Failed to save');
     } finally { setSaving(false); }
   }
 
@@ -176,7 +188,7 @@ function Overview({ record, onUpdated }: { record: InterviewerRecord; onUpdated:
   );
 }
 
-function SessionsList({ sessions, loading }: { sessions: Session[]; loading:boolean }){
+function SessionsList({ sessions, loading }: { sessions: DisplaySession[]; loading:boolean }){
   if(loading) return <div style={{fontSize:'0.6rem', color:'var(--foreground-soft)'}}>Loading sessions…</div>;
   if(sessions.length===0) return <div style={{fontSize:'0.65rem', color:'var(--foreground-soft)'}}>No sessions yet.</div>;
   return (
@@ -187,8 +199,8 @@ function SessionsList({ sessions, loading }: { sessions: Session[]; loading:bool
           <div style={{fontSize:'0.55rem', color:'var(--foreground-soft)'}}>{new Date(s.createdAt).toLocaleString()}</div>
           {/* Answers to questions */}
           {Array.isArray(s?.transcript) && s.transcript.length>0 && (()=>{
-            const groupedBySection: Record<string, string[]> = s.transcript.reduce(
-              (acc: Record<string, string[]>, u: Session['transcript'][0]) => {
+            const groupedBySection: Record<string, string[]> = s.transcript?.reduce(
+              (acc: Record<string, string[]>, u) => {
                 if (u && u.speaker === 'candidate' && u.sectionId) {
                   const key = String(u.sectionId);
                   if (!acc[key]) acc[key] = [];
@@ -197,7 +209,7 @@ function SessionsList({ sessions, loading }: { sessions: Session[]; loading:bool
                 return acc;
               },
               {} as Record<string, string[]>
-            );
+            ) || {};
             return (
               <div style={{marginTop:8, display:'grid', gap:6}}>
                 {Object.entries(groupedBySection).map(([sectionId, answers]) => (
@@ -238,13 +250,13 @@ function ResultsPlaceholder({ record }: { record: InterviewerRecord }){
 
 // ============ RESULTS ============
 
-type ResultsAnalyticsProps = { record: InterviewerRecord; sessions: Session[] };
+type ResultsAnalyticsProps = { record: InterviewerRecord; sessions: DisplaySession[] };
 
 function ResultsAnalytics({ record, sessions }: ResultsAnalyticsProps){
-  interface ScriptSection {
-  id: string;
-  prompt: string;
-}
+  type ScriptSection = {
+    id: string;
+    prompt: string;
+  };
 
 const sections: ScriptSection[] = Array.isArray(record?.script?.sections) ? record.script.sections.map(s => ({ 
   id: String(s.id), 
@@ -352,13 +364,13 @@ type SectionAgg = {
   quotes: string[];
 };
 
-function computeAggregates(sessions: Session[], sections: ScriptSection[]){
+function computeAggregates(sessions: DisplaySession[], sections: { id: string; prompt: string }[]){
   const bySection = new Map<string, SectionAgg>();
   const byParticipant = new Map<string, { label:string; quotes:string[] }>();
   const sectionIds = new Set(sections.map(s=>s.id));
 
-  function addParticipantQuote(sess: Session, text:string){
-    const p = sess?.participant?.email || sess?.participantSnapshot?.email || sess?.participant?.name || sess?.participantSnapshot?.name || 'Unknown';
+  function addParticipantQuote(sess: DisplaySession, text:string){
+    const p = sess?.participant?.email || sess?.participant?.name || 'Unknown';
     const label = typeof p==='string'? p : 'Unknown';
     const cur = byParticipant.get(label) || { label, quotes: [] };
     if(text) cur.quotes.push(text);
