@@ -24,11 +24,11 @@ export default function ScriptedInterviewPage({ script }: { script?: ScriptT }) 
     const id = setInterval(() => st.tick(), 1000);
     setReady(true);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [script, st]);
 
   // Prefill from signed-in user and auto-complete info step
   useEffect(() => {
+    if (!auth) return;
     const u = auth.currentUser;
     if (!u) return;
     const fallbackName = u.displayName || (u.email ? u.email.split('@')[0] : "");
@@ -202,7 +202,18 @@ function downloadJSON(obj: unknown) {
   URL.revokeObjectURL(url);
 }
 
-async function summarize(transcript: unknown[], setArtifacts: (a: any) => void) {
+interface SummaryArtifacts {
+  summary?: string;
+  insights?: string[];
+  scores?: Array<{
+    sectionId: string;
+    score: number;
+    evidence: string[];
+  }>;
+  quotes?: string[];
+}
+
+async function summarize(transcript: unknown[], setArtifacts: (artifacts: SummaryArtifacts) => void) {
   const res = await fetch("/api/summarize", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

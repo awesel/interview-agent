@@ -19,10 +19,10 @@ export default function CreateInterviewPage(){
     setCreating(true); setError(null);
     try {
       const existing = await listInterviewers(user.uid);
-      const payload: ScriptT = script || { title: name || 'Untitled Interview', sections: [] } as any;
+      const payload: ScriptT = script || { title: name || 'Untitled Interview', sections: [], type: 'interview' };
       await svcCreate({ ownerUid: user.uid, name, script: payload, order: existing.length });
       router.replace('/dashboard');
-    } catch(e:any){
+    } catch(e){
       setError(e.message||'Failed');
     } finally { setCreating(false); }
   }

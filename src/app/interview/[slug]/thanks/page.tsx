@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import Link from "next/link";
+
 import { useSearchParams } from "next/navigation";
 
 export default function InterviewThanks({ params }: { params: Promise<{ slug: string }> }) {

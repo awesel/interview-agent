@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { auth } from '@/lib/firebase';
 import { listSessions, getBySlug, listInterviewers, InterviewerRecord, updateInterviewer } from '@/lib/interviewersService';
 import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
 
 export default function InterviewDetailPage(){
   const router = useRouter();
@@ -11,7 +12,17 @@ export default function InterviewDetailPage(){
   const user = auth.currentUser;
   const [interview, setInterview] = useState<InterviewerRecord|null>(null);
   const [loading, setLoading] = useState(true);
-  const [sessions, setSessions] = useState<any[]>([]);
+  interface Session {
+  id: string;
+  createdAt: string;
+  transcript?: Array<{
+    speaker: 'candidate' | 'interviewer';
+    text?: string;
+    sectionId?: string;
+  }>;
+}
+
+const [sessions, setSessions] = useState<Session[]>([]);
   const [tab, setTab] = useState<'overview'|'sessions'|'results'>('overview');
   const [editName, setEditName] = useState('');
   const [editJson, setEditJson] = useState('');
@@ -19,7 +30,7 @@ export default function InterviewDetailPage(){
   const [error, setError] = useState<string|null>(null);
 
   useEffect(()=>{
-    let active = true;
+    const active = true;
     async function load(){
       if(!user){ setLoading(false); return; }
       // Try slug lookup first
@@ -56,7 +67,7 @@ export default function InterviewDetailPage(){
       const parsed = JSON.parse(editJson);
       await updateInterviewer(interview.id, { name: editName, script: parsed });
       setInterview({...interview, name: editName, script: parsed});
-    } catch(e:any){
+    } catch(e){
       setError(e.message||'Failed');
     } finally { setSaving(false); }
   }
@@ -109,7 +120,7 @@ export default function InterviewDetailPage(){
                         <div style={{fontSize:'0.55rem', color:'var(--foreground-soft)'}}>{new Date(s.createdAt).toLocaleString()}</div>
                         {Array.isArray(s?.transcript) && s.transcript.length>0 && (()=>{
                           const groupedBySection: Record<string, string[]> = s.transcript.reduce(
-                            (acc: Record<string, string[]>, u: any) => {
+                            (acc: Record<string, string[]>, u: Session['transcript'][0]) => {
                               if (u && u.speaker === 'candidate' && u.sectionId) {
                                 const key = String(u.sectionId);
                                 if (!acc[key]) acc[key] = [];
@@ -165,15 +176,23 @@ function TopBar(){
   return (
     <div style={{height:56, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 1rem', borderBottom:'1px solid #d4e6f9', background:'#ffffffdd', backdropFilter:'blur(8px)', position:'sticky', top:0, zIndex:30}}>
       <div style={{display:'flex', alignItems:'center', gap:14}}>
-        <a href='/dashboard' style={{fontWeight:700, fontSize:'1rem', textDecoration:'none', color:'inherit'}}>OpenEar</a>
-        <a href='/dashboard' className='btn-outline' style={{fontSize:'0.6rem', textDecoration:'none'}}>View All</a>
-        <a href='/dashboard/create' className='btn-outline' style={{fontSize:'0.6rem', textDecoration:'none'}}>Create</a>
+        <Link href='/dashboard' style={{fontWeight:700, fontSize:'1rem', textDecoration:'none', color:'inherit'}}>OpenEar</Link>
+        <Link href='/dashboard' className='btn-outline' style={{fontSize:'0.6rem', textDecoration:'none'}}>View All</Link>
+        <Link href='/dashboard/create' className='btn-outline' style={{fontSize:'0.6rem', textDecoration:'none'}}>Create</Link>
       </div>
     </div>
   );
 }
 
-function Sidebar({ interview, tab, setTab, sessions, shareLink }: any){
+interface SidebarProps {
+  interview: InterviewerRecord;
+  tab: 'overview' | 'sessions' | 'results';
+  setTab: (tab: 'overview' | 'sessions' | 'results') => void;
+  sessions: Session[];
+  shareLink: (slug: string) => string;
+}
+
+function Sidebar({ interview, tab, setTab, sessions, shareLink }: SidebarProps){
   if(!interview) return <aside style={{borderRight:'1px solid #d4e6f9', padding:'1rem', fontSize:'0.6rem'}}>Loading...</aside>;
   const link = shareLink(interview.slug);
   return (
@@ -181,7 +200,7 @@ function Sidebar({ interview, tab, setTab, sessions, shareLink }: any){
       <div style={{display:'grid', gap:6}}>
         <div style={{fontSize:'0.75rem', fontWeight:600}}>{interview.name}</div>
         <div style={{fontSize:'0.5rem', color:'var(--foreground-soft)'}}>{interview.slug.slice(0,12)}</div>
-        <a href={`/interview/${interview.slug}`} target='_blank' style={{fontSize:'0.55rem', textDecoration:'none', color:'var(--blue)'}}>Open Public Link</a>
+        <Link href={`/interview/${interview.slug}`} target='_blank' style={{fontSize:'0.55rem', textDecoration:'none', color:'var(--blue)'}}>Open Public Link</Link>
         <div style={{display:'grid', gap:4}}>
           <button onClick={()=>setTab('overview')} style={btn(tab==='overview')}>Overview</button>
           <button onClick={()=>setTab('sessions')} style={btn(tab==='sessions')}>Sessions ({sessions.length})</button>

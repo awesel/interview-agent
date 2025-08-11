@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { db, auth } from "@/lib/firebase";
 import { collection, query, where, getDocs, limit } from "firebase/firestore";
 import { createFinishedAttempt } from "@/lib/interviewersService";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import hello from "@/../scripts/hello.json";
 import { Script, ScriptT } from "@/lib/types";
 import ScriptedInterviewPage from "../ScriptedInterviewPage"; // reuse existing interactive component for now
@@ -42,7 +42,12 @@ export default function SharedInterview({ params }: { params: Promise<{ slug: st
           return;
         }
         const dref = snap.docs[0];
-        const data: any = dref.data();
+        interface InterviewerData {
+  script: unknown;
+  slug: string;
+}
+
+const data = dref.data() as InterviewerData;
         const parsed = Script.parse(data.script);
         setScript(parsed);
         setInterviewerId(dref.id);
@@ -72,20 +77,34 @@ export default function SharedInterview({ params }: { params: Promise<{ slug: st
     autoSavedRef.current = true;
     (async ()=>{
       try {
-        const attempt = {
+        interface Attempt {
+          interviewerId: string;
+          interviewerSlug: string;
+          scriptTitle: string;
+          startedAt: number;
+          endedAt: number;
+          durationSec: number;
+          participant: unknown | null;
+          transcript: unknown[];
+          sections: unknown[];
+          artifacts: unknown | null;
+          createdAt: number;
+        }
+
+        const attempt: Attempt = {
           interviewerId,
           interviewerSlug: slug,
-            scriptTitle: s.script.title,
-            startedAt: s.startedAt,
-            endedAt: s.endedAt,
-            durationSec: s.endedAt ? Math.max(0, Math.round((s.endedAt - s.startedAt)/1000)) : 0,
-            participant: s.participant || null,
-            transcript: s.transcript,
-            sections: s.sections,
-            artifacts: s.artifacts || null,
-            createdAt: Date.now(),
+          scriptTitle: s.script.title,
+          startedAt: s.startedAt,
+          endedAt: s.endedAt,
+          durationSec: s.endedAt ? Math.max(0, Math.round((s.endedAt - s.startedAt)/1000)) : 0,
+          participant: s.participant || null,
+          transcript: s.transcript,
+          sections: s.sections,
+          artifacts: s.artifacts || null,
+          createdAt: Date.now(),
         };
-        const id = await createFinishedAttempt(attempt as any);
+        const id = await createFinishedAttempt(attempt);
         setSavedAttemptId(id);
         setTimeout(()=>{ router.replace(`/interview/${slug}/thanks?session=${id}`); }, 600);
       } catch {

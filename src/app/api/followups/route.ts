@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     });
 
     const text = (message.content || [])
-      .map((b: any) => (typeof b?.text === "string" ? b.text : ""))
+      .map((b) => (typeof b?.text === "string" ? b.text : ""))
       .join("")
       .trim();
 

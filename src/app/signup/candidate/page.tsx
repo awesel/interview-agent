@@ -9,7 +9,7 @@ import { useSearchParams } from 'next/navigation';
 export default function CandidateSignup(){
   const auth = getAuth(app);
   const sp = useSearchParams();
-  const [user,setUser]=useState<any>(auth.currentUser);
+  const [user,setUser]=useState<import('firebase/auth').User|null>(auth.currentUser);
   useEffect(()=> onAuthStateChanged(auth,u=>setUser(u)),[auth]);
   const nextPath = sp.get('next') || (typeof window!=='undefined' ? sessionStorage.getItem('candidate_next') || '' : '') || '/';
 

@@ -2,15 +2,16 @@
 import { useEffect, useState } from 'react';
 import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, getAuth } from 'firebase/auth';
 import { app, db } from '@/lib/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import Link from 'next/link';
 
 export default function InterviewerSignup() {
-  const auth = getAuth(app);
-  const [user,setUser]=useState<any>(auth.currentUser);
+  const auth = getAuth(app!);
+  const [user,setUser]=useState<import('firebase/auth').User|null>(auth.currentUser);
   useEffect(()=> onAuthStateChanged(auth,u=>setUser(u)),[auth]);
 
   async function signIn(){
+    if (!db) return;
     const provider = new GoogleAuthProvider();
     const res = await signInWithPopup(auth, provider);
     const u = res.user;

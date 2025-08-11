@@ -15,12 +15,12 @@ const firebaseConfig = {
 // Only initialize Firebase if we're in the browser or have real config
 const shouldInitializeFirebase = typeof window !== "undefined" || process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
-export const app = shouldInitializeFirebase && (getApps().length ? getApps()[0]! : initializeApp(firebaseConfig));
+export const app = shouldInitializeFirebase ? (getApps().length ? getApps()[0]! : initializeApp(firebaseConfig)) : null;
 
 // Convenience singletons (safe to call multiple times)
-export const auth = app ? getAuth(app) : null as any;
+export const auth = app ? getAuth(app) : null;
 // Firestore client
-export const db = app ? getFirestore(app) : null as any;
+export const db = app ? getFirestore(app) : null;
 
 // Optional: connect to Firestore emulator when enabled
 if (typeof window !== "undefined" && process.env.FIREBASE_EMULATORS && db) {

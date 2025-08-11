@@ -59,7 +59,20 @@ function InterviewSwitcher({ activeSlug }: { activeSlug:string }){
 	const [list,setList]=useState<InterviewerRecord[]>([]);
 	const [loading,setLoading]=useState(true);
 	const router = useRouter();
-	useEffect(()=>{ let cancelled=false; async function load(){ const user=auth.currentUser; if(!user){ setLoading(false); return;} try { const items= await listInterviewers(user.uid); if(!cancelled) setList(items);} finally { if(!cancelled) setLoading(false);} } load(); },[]);
+	useEffect(()=>{ 
+		const cancelled = false; 
+		async function load(){ 
+			const user=auth.currentUser; 
+			if(!user){ setLoading(false); return;} 
+			try { 
+				const items= await listInterviewers(user.uid); 
+				if(!cancelled) setList(items);
+			} finally { 
+				if(!cancelled) setLoading(false);
+			} 
+		} 
+		load(); 
+	},[]);
 	if(loading) return <div style={{fontSize:'0.55rem', color:'var(--foreground-soft)'}}>Loading…</div>;
 	if(!list.length) return null;
 	return (

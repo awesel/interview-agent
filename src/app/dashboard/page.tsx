@@ -19,7 +19,8 @@ export default function DashboardIndexPage(){
   // polling loader (simple) – could be replaced with snapshot listener later
   useEffect(()=>{
     if(!user) return;
-    let active=true; let timer: any;
+    const active=true;
+    let timer: ReturnType<typeof setTimeout>;
     async function load(){
       if(!active) return;
       if(!user) return;
@@ -47,7 +48,7 @@ export default function DashboardIndexPage(){
     setList(l=>l.filter(x=>x.id!==id));
   }
   if(!authReady) return <div style={{padding:'2rem', fontSize:'0.7rem'}}>Loading account…</div>;
-  if(!user) return <div style={{padding:'2rem', fontSize:'0.7rem'}}>Please <a href="/signup/interviewer" style={{color:'var(--blue)'}}>sign in</a> to manage interviews.</div>;
+  if(!user) return <div style={{padding:'2rem', fontSize:'0.7rem'}}>Please <Link href="/signup/interviewer" style={{color:'var(--blue)'}}>sign in</Link> to manage interviews.</div>;
   return (
     <div style={{padding:'1.25rem 1.5rem', display:'grid', gap:'1.25rem'}}>
       <h1 style={{margin:0, fontSize:'1.15rem', fontWeight:700}}>All Interviews</h1>

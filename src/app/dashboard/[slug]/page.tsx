@@ -14,7 +14,25 @@ export default function DashboardDetailPage({ params }: { params: Promise<{ slug
   const [record,setRecord]=useState<InterviewerRecord|null>(null);
   const [recordLoading,setRecordLoading]=useState(true);
   const [loadError,setLoadError]=useState<string|null>(null);
-  const [sessions,setSessions]=useState<any[]>([]);
+  interface Session {
+  id: string;
+  createdAt: string;
+  transcript?: Array<{
+    speaker: 'candidate' | 'interviewer';
+    text?: string;
+    sectionId?: string;
+  }>;
+  participant?: {
+    email?: string;
+    name?: string;
+  };
+  participantSnapshot?: {
+    email?: string;
+    name?: string;
+  };
+}
+
+const [sessions,setSessions]=useState<Session[]>([]);
   const [sessionsLoading,setSessionsLoading]=useState(true);
   const [subTab,setSubTab]=useState<'overview'|'sessions'|'results'>('overview');
 
@@ -54,7 +72,14 @@ export default function DashboardDetailPage({ params }: { params: Promise<{ slug
   );
 }
 
-function DetailSidebar({ record, subTab, setSubTab, sessions }: any){
+interface DetailSidebarProps {
+  record: InterviewerRecord;
+  subTab: 'overview' | 'sessions' | 'results';
+  setSubTab: (tab: 'overview' | 'sessions' | 'results') => void;
+  sessions: Session[];
+}
+
+function DetailSidebar({ record, subTab, setSubTab, sessions }: DetailSidebarProps){
   const share = typeof window!=='undefined'? `${window.location.origin}/signup/candidate?next=%2Finterview%2F${record.slug}`: '';
   const Btn=({id,label}:{id:string,label:string})=> <button onClick={()=>setSubTab(id)} style={{textAlign:'left', background: subTab===id? '#fff':'#eef7ff', border:'1px solid #bcdaf3', padding:'6px 10px', fontSize:'0.6rem', borderRadius:8, cursor:'pointer', fontWeight: subTab===id?600:500}}>{label}</button>;
   return (
@@ -90,9 +115,9 @@ function Overview({ record, onUpdated }: { record: InterviewerRecord; onUpdated:
 
   async function save(){
     setError(null);
-    let parsed:any;
+    let parsed: ScriptT;
     if(editMode === 'json'){
-      try { parsed = JSON.parse(text); } catch(e:any){ setError('Invalid JSON: '+ (e.message||'Parse error')); return; }
+      try { parsed = JSON.parse(text); } catch(e){ setError('Invalid JSON: '+ (e instanceof Error ? e.message : 'Parse error')); return; }
     } else {
       parsed = draft;
       if(!parsed?.sections || parsed.sections.length===0){ setError('Add at least one question'); return; }
@@ -102,7 +127,7 @@ function Overview({ record, onUpdated }: { record: InterviewerRecord; onUpdated:
       await updateInterviewer(record.id, { script: parsed });
       onUpdated({...record, script: parsed});
       setEdit(false);
-    } catch(e:any){
+    } catch(e){
       setError(e.message||'Failed to save');
     } finally { setSaving(false); }
   }
@@ -151,7 +176,7 @@ function Overview({ record, onUpdated }: { record: InterviewerRecord; onUpdated:
   );
 }
 
-function SessionsList({ sessions, loading }: { sessions:any[]; loading:boolean }){
+function SessionsList({ sessions, loading }: { sessions: Session[]; loading:boolean }){
   if(loading) return <div style={{fontSize:'0.6rem', color:'var(--foreground-soft)'}}>Loading sessions…</div>;
   if(sessions.length===0) return <div style={{fontSize:'0.65rem', color:'var(--foreground-soft)'}}>No sessions yet.</div>;
   return (
@@ -163,7 +188,7 @@ function SessionsList({ sessions, loading }: { sessions:any[]; loading:boolean }
           {/* Answers to questions */}
           {Array.isArray(s?.transcript) && s.transcript.length>0 && (()=>{
             const groupedBySection: Record<string, string[]> = s.transcript.reduce(
-              (acc: Record<string, string[]>, u: any) => {
+              (acc: Record<string, string[]>, u: Session['transcript'][0]) => {
                 if (u && u.speaker === 'candidate' && u.sectionId) {
                   const key = String(u.sectionId);
                   if (!acc[key]) acc[key] = [];
@@ -213,12 +238,20 @@ function ResultsPlaceholder({ record }: { record: InterviewerRecord }){
 
 // ============ RESULTS ============
 
-type ResultsAnalyticsProps = { record: InterviewerRecord; sessions: any[] };
+type ResultsAnalyticsProps = { record: InterviewerRecord; sessions: Session[] };
 
 function ResultsAnalytics({ record, sessions }: ResultsAnalyticsProps){
-  const sections: Array<{ id:string; prompt:string }>= Array.isArray(record?.script?.sections) ? record.script.sections.map((s:any)=>({ id: String(s.id), prompt: String(s.prompt||'') })) : [];
+  interface ScriptSection {
+  id: string;
+  prompt: string;
+}
 
-  const { bySection, byParticipant, totalSessions } = useMemo(()=>computeAggregates(sessions as any[], sections), [sessions, sections]);
+const sections: ScriptSection[] = Array.isArray(record?.script?.sections) ? record.script.sections.map(s => ({ 
+  id: String(s.id), 
+  prompt: String(s.prompt || '') 
+})) : [];
+
+  const { bySection, byParticipant, totalSessions } = useMemo(()=>computeAggregates(sessions, sections), [sessions, sections]);
 
   return (
     <div className='card' style={{display:'grid', gap:'0.9rem'}}>
@@ -319,12 +352,12 @@ type SectionAgg = {
   quotes: string[];
 };
 
-function computeAggregates(sessions:any[], sections: Array<{id:string; prompt:string}>){
+function computeAggregates(sessions: Session[], sections: ScriptSection[]){
   const bySection = new Map<string, SectionAgg>();
   const byParticipant = new Map<string, { label:string; quotes:string[] }>();
   const sectionIds = new Set(sections.map(s=>s.id));
 
-  function addParticipantQuote(sess:any, text:string){
+  function addParticipantQuote(sess: Session, text:string){
     const p = sess?.participant?.email || sess?.participantSnapshot?.email || sess?.participant?.name || sess?.participantSnapshot?.name || 'Unknown';
     const label = typeof p==='string'? p : 'Unknown';
     const cur = byParticipant.get(label) || { label, quotes: [] };
@@ -428,7 +461,7 @@ function ResultsChat({ sections, bySection, byParticipant }:{ sections:Array<{id
       });
       const data = await res.json();
       if(res.ok){ setAnswer(data.text||''); } else { setAnswer(data.error||'Failed'); }
-    }catch(e:any){ setAnswer('Failed to ask.'); }
+    }catch(e){ setAnswer('Failed to ask.'); }
     finally{ setLoading(false); }
   }
 
@@ -437,7 +470,7 @@ function ResultsChat({ sections, bySection, byParticipant }:{ sections:Array<{id
   return (
     <div style={{display:'grid', gap:10}}>
       <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
-        <select value={mode} onChange={e=>setMode(e.target.value as any)} style={{fontSize:'0.6rem', padding:'4px 8px', border:'1px solid #bcdaf3', borderRadius:8}}>
+        <select value={mode} onChange={e=>setMode(e.target.value as 'question'|'participant')} style={{fontSize:'0.6rem', padding:'4px 8px', border:'1px solid #bcdaf3', borderRadius:8}}>
           <option value='question'>Context: One question (all responses)</option>
           <option value='participant'>Context: One participant (all responses)</option>
         </select>
