@@ -7,13 +7,15 @@ type Store = {
   currentIdx: number;
   timeLeftSec: number;
   ticking: boolean;
+  // True when current section countdown has reached zero; we wait for next candidate answer to advance
+  expired: boolean;
   start: (script: ScriptT) => void;
   nudgeOrAdvance: () => void;
   addCandidate: (text: string) => void;
   addInterviewer: (text: string) => void;
   addUtterance: (u: Utterance) => void;
   tick: () => void;
-  finish: () => void;
+  finish: () => Promise<void>;
   setArtifacts: (artifacts: NonNullable<Session["artifacts"]>) => void;
   setParticipant: (participant: NonNullable<Session["participant"]>) => void;
 };
@@ -22,6 +24,7 @@ export const useInterview = create<Store>((set, get) => ({
   currentIdx: 0,
   timeLeftSec: 0,
   ticking: false,
+  expired: false,
 
   start: (script) => {
     const now = Date.now();
@@ -37,6 +40,7 @@ export const useInterview = create<Store>((set, get) => ({
       currentIdx: 0,
       timeLeftSec: script.sections[0].targetDurationSec,
       ticking: true,
+  expired: false,
     });
   // Open with the first prompt (no remote writes until finish)
     get().addInterviewer(script.sections[0].prompt);
@@ -60,12 +64,18 @@ export const useInterview = create<Store>((set, get) => ({
       atMs: Date.now(),
       sectionId: sec.id,
     });
+    const timeLeft = get().timeLeftSec;
+    const expired = get().expired || timeLeft <= 0;
 
-    // If <= 30s remain, skip follow-ups and move on
-    if (get().timeLeftSec <= 30) {
-      get().addInterviewer("⏱ Not enough time for follow-ups. Moving on.");
+    // If section time fully expired: advance (or finish) after recording answer (no follow-ups)
+    if (expired) {
       get().nudgeOrAdvance();
       return;
+    }
+
+    // If within final 30s window (but not expired), suppress follow-ups but stay on question
+    if (timeLeft <= 30) {
+      return; // Do not generate follow-ups, await further candidate input or expiration
     }
 
     try {
@@ -106,9 +116,12 @@ export const useInterview = create<Store>((set, get) => ({
     const st = get();
     if (!st.ticking) return;
     const next = st.timeLeftSec - 1;
+    if (next <= 0) {
+      // Mark expired; stop ticking but wait for candidate answer to advance
+      set({ timeLeftSec: 0, expired: true, ticking: false });
+      return;
+    }
     set({ timeLeftSec: next });
-    if (next === 10) get().addInterviewer("👋 10 seconds left, please wrap this thought.");
-    if (next <= 0) get().nudgeOrAdvance();
   },
 
   nudgeOrAdvance: () => {
@@ -116,21 +129,36 @@ export const useInterview = create<Store>((set, get) => ({
     if (!st.session) return;
     const nextIdx = st.currentIdx + 1;
     const last = st.session.script.sections[st.currentIdx];
-    st.addInterviewer(`⏱ Moving on from "${last.id}".`);
+    st.addInterviewer(`Moving on from "${last.id}".`);
     if (nextIdx < st.session.script.sections.length) {
       const next = st.session.script.sections[nextIdx];
-      set({ currentIdx: nextIdx, timeLeftSec: next.targetDurationSec, ticking: true });
+      set({ currentIdx: nextIdx, timeLeftSec: next.targetDurationSec, ticking: true, expired: false });
       st.addInterviewer(next.prompt);
     } else {
       get().finish();
     }
   },
 
-  finish: () =>
-    set((st) => ({
-      ticking: false,
-      session: st.session && { ...st.session, endedAt: Date.now() },
-    })),
+  finish: async () => {
+    const cur = get().session;
+    if (!cur) return;
+    // Mark ended
+    set({ ticking: false, expired: true, session: { ...cur, endedAt: Date.now() } });
+    // Auto-summarize
+    try {
+      const res = await fetch("/api/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript: cur.transcript }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        get().setArtifacts(data);
+      }
+    } catch {
+      // swallow summarization errors to not disrupt UX
+    }
+  },
 
   setArtifacts: (artifacts) =>
     set((st) => ({
