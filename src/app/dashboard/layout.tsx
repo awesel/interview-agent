@@ -60,7 +60,7 @@ function InterviewSwitcher({ activeSlug }: { activeSlug:string }){
 	const [loading,setLoading]=useState(true);
 	const router = useRouter();
 	useEffect(()=>{ 
-		let cancelled = false; 
+		const cancelled = false; 
 		async function load(){ 
 			const user=auth?.currentUser; 
 			if(!user){ setLoading(false); return;} 
