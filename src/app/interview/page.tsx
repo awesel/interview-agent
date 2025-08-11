@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { useInterview } from "@/lib/interviewStore";
 import hello from "@/../scripts/hello.json";
@@ -9,12 +10,18 @@ import AudioPlayer from "@/components/AudioPlayer";
 import { useVoiceInterview } from "@/hooks/useVoiceInterview";
 
 export default function InterviewPage() {
+  const router = useRouter();
   const st = useInterview();
   const [ready, setReady] = useState(false);
   const [info, setInfo] = useState({ name: "", email: "" });
   const [infoDone, setInfoDone] = useState(false);
   const [isVoiceMode, setIsVoiceMode] = useState(true);
   const voice = useVoiceInterview(isVoiceMode);
+
+  const handleFinishInterview = async () => {
+    await st.finish();
+    router.push("/interview/thanks");
+  };
 
   useEffect(() => {
     if (!st.session) {
@@ -101,7 +108,12 @@ export default function InterviewPage() {
           <button className="btn" onClick={() => st.nudgeOrAdvance()}>Force Next</button>
           <button className="btn" onClick={() => downloadJSON(st.session!)}>Export JSON</button>
           <button className="btn" onClick={() => summarize(st.session?.transcript ?? [], st.setArtifacts)}>Finish & Summarize</button>
-          <button className="btn" onClick={() => st.finish()}>Finish Interview</button>
+          <button 
+            className="btn"
+            onClick={handleFinishInterview}
+          >
+            Finish Interview
+          </button>
         </div>
       </section>
 
@@ -111,7 +123,7 @@ export default function InterviewPage() {
           {st.session.transcript.map((u, i) => (
             <div key={i} className="text-sm">
               <div className="flex items-start gap-2">
-                <span className="font-mono text-xs text-gray-500" title={u.sectionId}>{shortId(u.sectionId)}</span>
+                <span className="font-mono text-xs text-gray-500" title={u.sectionId}>{shortId(u.sectionId).slice(0,7)}...</span>
                 <div className="flex-1">
                   <b>{u.speaker === "candidate" ? "You" : "Agent"}:</b> {u.text}
                   {u.speaker === "interviewer" && isVoiceMode && (() => {

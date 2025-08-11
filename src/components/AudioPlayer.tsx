@@ -37,11 +37,20 @@ export default function AudioPlayer({
         audioRef.current = audio;
         
         audio.addEventListener('loadedmetadata', () => {
-          setDuration(audio.duration);
+          const audioDuration = audio.duration;
+          if (audioDuration && !isNaN(audioDuration) && isFinite(audioDuration)) {
+            setDuration(audioDuration);
+          } else {
+            console.warn('Invalid audio duration:', audioDuration);
+            setDuration(0);
+          }
         });
         
         audio.addEventListener('timeupdate', () => {
-          setCurrentTime(audio.currentTime);
+          const currentTime = audio.currentTime;
+          if (!isNaN(currentTime) && isFinite(currentTime)) {
+            setCurrentTime(currentTime);
+          }
         });
         
         audio.addEventListener('ended', () => {
@@ -84,6 +93,9 @@ export default function AudioPlayer({
   };
 
   const formatTime = (time: number) => {
+    if (!time || isNaN(time) || !isFinite(time)) {
+      return "0:00";
+    }
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -126,7 +138,11 @@ export default function AudioPlayer({
             <div className="flex-1 bg-gray-200 rounded-full h-1">
               <div 
                 className="bg-blue-500 h-1 rounded-full transition-all duration-100"
-                style={{ width: `${(currentTime / duration) * 100}%` }}
+                style={{ 
+                  width: duration > 0 && !isNaN(currentTime / duration) 
+                    ? `${Math.min(100, Math.max(0, (currentTime / duration) * 100))}%` 
+                    : '0%' 
+                }}
               />
             </div>
             <span>{formatTime(duration)}</span>
