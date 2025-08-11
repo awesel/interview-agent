@@ -119,9 +119,15 @@ function formatJson(s: string) {
 
 function CopyField({ value }: { value: string }) {
   return (
-    <div style={{display:"flex", alignItems:"center", gap:4}}>
-      <input readOnly value={value} style={{fontSize:"0.6rem", padding:"4px 6px", width:220}} />
-      <button className="btn-outline" style={{fontSize:"0.65rem"}} onClick={()=>{navigator.clipboard.writeText(value);}}>
+    <div onClick={(e)=>e.stopPropagation()} style={{display:"flex", alignItems:"center", gap:4}}>
+      <input onClick={(e)=>e.stopPropagation()} readOnly value={value} style={{fontSize:"0.6rem", padding:"4px 6px", width:220}} />
+      <button
+        type="button"
+        data-action="copy"
+        className="btn-outline"
+        style={{fontSize:"0.65rem"}}
+        onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); navigator.clipboard.writeText(value); }}
+      >
         Copy
       </button>
     </div>

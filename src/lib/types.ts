@@ -29,7 +29,6 @@ export type Session = {
   participant?: {
     name: string;
     email: string;
-    phone: string;
   };
   sections: Array<{
     id: string;

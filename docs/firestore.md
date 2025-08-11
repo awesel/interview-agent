@@ -33,7 +33,6 @@ Fields below use Unix epoch milliseconds for timestamps unless noted.
 - `participant` (object | null): Candidate info collected at start.
   - `name` (string, optional)
   - `email` (string, optional)
-  - `phone` (string, optional)
 - `transcript` (array): Full ordered conversation turns.
   - Each item: `{ speaker: "interviewer" | "candidate", text: string, atMs: number, sectionId: string }`
 - `sections` (array): Per-section timing/progress.
@@ -54,8 +53,7 @@ Fields below use Unix epoch milliseconds for timestamps unless noted.
   "durationSec": 300,
   "participant": {
     "name": "Ada Lovelace",
-    "email": "ada@example.com",
-    "phone": "+1-555-0100"
+    "email": "ada@example.com"
   },
   "transcript": [
     {

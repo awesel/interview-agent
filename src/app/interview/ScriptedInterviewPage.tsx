@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useInterview } from "@/lib/interviewStore";
+import { auth } from "@/lib/firebase";
 import hello from "@/../scripts/hello.json";
 import { Script, ScriptT } from "@/lib/types";
 import VoiceRecorder from "@/components/VoiceRecorder";
@@ -10,7 +11,7 @@ import { useVoiceInterview } from "@/hooks/useVoiceInterview";
 export default function ScriptedInterviewPage({ script }: { script?: ScriptT }) {
   const st = useInterview();
   const [ready, setReady] = useState(false);
-  const [info, setInfo] = useState({ name: "", email: "", phone: "" });
+  const [info, setInfo] = useState({ name: "", email: "" });
   const [infoDone, setInfoDone] = useState(false);
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const voice = useVoiceInterview(isVoiceMode);
@@ -26,6 +27,24 @@ export default function ScriptedInterviewPage({ script }: { script?: ScriptT }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Prefill from signed-in user and auto-complete info step
+  useEffect(() => {
+    const u = auth.currentUser;
+    if (!u) return;
+    const fallbackName = u.displayName || (u.email ? u.email.split('@')[0] : "");
+    setInfo((prev) => ({
+      name: prev.name || fallbackName,
+      email: prev.email || u.email || "",
+    }));
+  }, []);
+
+  useEffect(() => {
+    if (!infoDone && info.email) {
+      st.setParticipant({ ...info });
+      setInfoDone(true);
+    }
+  }, [info, infoDone, st]);
+
   if (!st.session) return null;
   if (!infoDone) {
     return (
@@ -35,14 +54,13 @@ export default function ScriptedInterviewPage({ script }: { script?: ScriptT }) 
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
-            if (!info.name || !info.email || !info.phone) return;
+            if (!info.name || !info.email) return;
             st.setParticipant({ ...info });
             setInfoDone(true);
           }}
         >
           <input className="w-full border rounded-md p-2" placeholder="Full name" value={info.name} onChange={(e)=>setInfo(v=>({...v,name:e.target.value}))} />
           <input className="w-full border rounded-md p-2" placeholder="Email" value={info.email} onChange={(e)=>setInfo(v=>({...v,email:e.target.value}))} />
-          <input className="w-full border rounded-md p-2" placeholder="Phone" value={info.phone} onChange={(e)=>setInfo(v=>({...v,phone:e.target.value}))} />
           <div className="flex justify-end"><button className="btn">Continue</button></div>
         </form>
       </main>

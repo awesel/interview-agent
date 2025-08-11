@@ -107,6 +107,38 @@ export default function InterviewDetailPage(){
                       <div key={s.id} className='card' style={{padding:'0.75rem 1rem'}}>
                         <div style={{fontSize:'0.7rem', fontWeight:600}}>Session {s.id.slice(0,6)}</div>
                         <div style={{fontSize:'0.55rem', color:'var(--foreground-soft)'}}>{new Date(s.createdAt).toLocaleString()}</div>
+                        {Array.isArray(s?.transcript) && s.transcript.length>0 && (()=>{
+                          const groupedBySection: Record<string, string[]> = s.transcript.reduce(
+                            (acc: Record<string, string[]>, u: any) => {
+                              if (u && u.speaker === 'candidate' && u.sectionId) {
+                                const key = String(u.sectionId);
+                                if (!acc[key]) acc[key] = [];
+                                if (u.text) acc[key].push(String(u.text));
+                              }
+                              return acc;
+                            },
+                            {} as Record<string, string[]>
+                          );
+                          return (
+                            <div style={{marginTop:8, display:'grid', gap:6}}>
+                              {Object.entries(groupedBySection).map(([sectionId, answers]) => (
+                                <div key={sectionId} style={{display:'grid', gap:4}}>
+                                  <div style={{fontSize:'0.6rem', fontWeight:600}}>Q: {sectionId}</div>
+                                  <div style={{display:'grid', gap:4}}>
+                                    {answers.slice(0, 3).map((ans: string, idx: number) => (
+                                      <div key={idx} style={{fontSize:'0.55rem', color:'#1e2a3b'}}>
+                                        {ans.length > 220 ? ans.slice(0, 220) + '…' : ans}
+                                      </div>
+                                    ))}
+                                    {answers.length > 3 && (
+                                      <div style={{fontSize:'0.5rem', color:'var(--foreground-soft)'}}>+{answers.length - 3} more</div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </div>
                     ))}
                   </div>

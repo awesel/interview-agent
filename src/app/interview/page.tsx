@@ -11,7 +11,7 @@ import { useVoiceInterview } from "@/hooks/useVoiceInterview";
 export default function InterviewPage({ script, interviewerId, manualSave }: { script?: ScriptT; interviewerId?: string; manualSave?: () => void | Promise<void> }) {
   const st = useInterview();
   const [ready, setReady] = useState(false);
-  const [info, setInfo] = useState({ name: "", email: "", phone: "" });
+  const [info, setInfo] = useState({ name: "", email: "" });
   const [infoDone, setInfoDone] = useState(false);
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const voice = useVoiceInterview(isVoiceMode);
@@ -31,16 +31,16 @@ export default function InterviewPage({ script, interviewerId, manualSave }: { s
   useEffect(()=>{
     const u = auth.currentUser;
     if(!u) return;
+    const fallbackName = u.displayName || (u.email ? u.email.split('@')[0] : "");
     setInfo(prev=>({
-      name: prev.name || u.displayName || "",
+      name: prev.name || fallbackName,
       email: prev.email || u.email || "",
-      phone: prev.phone || ""
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
   // Auto-complete info step if we already have name + email from auth
   useEffect(()=>{
-    if(!infoDone && info.name && info.email){
+    if(!infoDone && info.email){
       st.setParticipant({ ...info });
       setInfoDone(true);
     }
@@ -70,7 +70,6 @@ export default function InterviewPage({ script, interviewerId, manualSave }: { s
         >
           <input className="w-full border rounded-md p-2" placeholder="Full name" value={info.name} onChange={(e)=>setInfo(v=>({...v,name:e.target.value}))} required />
           <input className="w-full border rounded-md p-2" placeholder="Email" type="email" value={info.email} onChange={(e)=>setInfo(v=>({...v,email:e.target.value}))} required />
-          <input className="w-full border rounded-md p-2" placeholder="Phone (optional)" value={info.phone} onChange={(e)=>setInfo(v=>({...v,phone:e.target.value}))} />
           <div className="flex justify-end"><button className="btn">Continue</button></div>
         </form>
       </main>

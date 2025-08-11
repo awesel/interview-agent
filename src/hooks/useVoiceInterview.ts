@@ -29,7 +29,9 @@ export function useVoiceInterview(isVoiceMode: boolean = false) {
       });
       
       if (!response.ok) {
-        throw new Error("Failed to create conversation");
+        const body = await response.text().catch(() => "");
+        console.error("Failed to create conversation:", response.status, body);
+        return;
       }
       
       const data = await response.json();
@@ -77,10 +79,10 @@ export function useVoiceInterview(isVoiceMode: boolean = false) {
 
   // Initialize conversation when interview starts
   useEffect(() => {
-    if (interviewStore.session && !conversationId) {
+    if (interviewStore.session && !conversationId && isVoiceMode) {
       initializeConversation();
     }
-  }, [interviewStore.session, conversationId]);
+  }, [interviewStore.session, conversationId, isVoiceMode]);
 
   // Monitor for new interviewer messages and generate TTS (only in voice mode)
   useEffect(() => {

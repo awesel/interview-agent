@@ -3,7 +3,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { auth } from '@/lib/firebase';
 import { getBySlug, listAttempts, InterviewerRecord, updateInterviewer } from '@/lib/interviewersService';
 import Link from 'next/link';
-import { Utterance } from '@/lib/types';
+import { ScriptT, Utterance } from '@/lib/types';
+import ScriptForm from '@/components/ScriptForm';
 
 export default function DashboardDetailPage({ params }: { params: Promise<{ slug: string }> }){
   // unwrap promise-based params (Next.js 15+)
@@ -83,12 +84,19 @@ function Overview({ record, onUpdated }: { record: InterviewerRecord; onUpdated:
   const [text,setText]=React.useState(()=>JSON.stringify(record.script, null, 2));
   const [saving,setSaving]=React.useState(false);
   const [error,setError]=React.useState<string|null>(null);
+  const [editMode, setEditMode] = React.useState<'form'|'json'>('form');
+  const [draft, setDraft] = React.useState<ScriptT>(record.script as ScriptT);
   React.useEffect(()=>{ if(!edit) setText(JSON.stringify(record.script, null, 2)); },[record, edit]);
 
   async function save(){
     setError(null);
     let parsed:any;
-    try { parsed = JSON.parse(text); } catch(e:any){ setError('Invalid JSON: '+ (e.message||'Parse error')); return; }
+    if(editMode === 'json'){
+      try { parsed = JSON.parse(text); } catch(e:any){ setError('Invalid JSON: '+ (e.message||'Parse error')); return; }
+    } else {
+      parsed = draft;
+      if(!parsed?.sections || parsed.sections.length===0){ setError('Add at least one question'); return; }
+    }
     setSaving(true);
     try {
       await updateInterviewer(record.id, { script: parsed });
@@ -112,18 +120,29 @@ function Overview({ record, onUpdated }: { record: InterviewerRecord; onUpdated:
         </div>
       </div>
       <div>
-        <h3 style={{fontSize:'0.8rem', margin:'0 0 8px'}}>Script JSON</h3>
+        <h3 style={{fontSize:'0.8rem', margin:'0 0 8px'}}>Script</h3>
         {!edit && (
           <pre style={{maxHeight:360, overflow:'auto', fontSize:'0.55rem', background:'#f4faff', border:'1px solid #d4e6f9', padding:'12px 14px', borderRadius:12}}>{JSON.stringify(record.script, null, 2)}</pre>
         )}
         {edit && (
           <div style={{display:'grid', gap:8}}>
-            <textarea value={text} onChange={e=>setText(e.target.value)} rows={18} style={{fontFamily:'var(--font-mono)', fontSize:'0.6rem'}} />
+            <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+              <button type='button' className={editMode==='form'? 'btn':'btn-outline'} onClick={()=>setEditMode('form')}>Form</button>
+              <button type='button' className={editMode==='json'? 'btn':'btn-outline'} onClick={()=>setEditMode('json')}>JSON</button>
+            </div>
+            {editMode==='form' && (
+              <ScriptForm externalTitle={record.name} value={record.script as ScriptT} onChange={setDraft} />
+            )}
+            {editMode==='json' && (
+              <textarea value={text} onChange={e=>setText(e.target.value)} rows={18} style={{fontFamily:'var(--font-mono)', fontSize:'0.6rem'}} />
+            )}
             {error && <div style={{fontSize:'0.6rem', color:'var(--danger)'}}>{error}</div>}
             <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
               <button disabled={saving} className='btn' onClick={save}>{saving? 'Saving...' : 'Save'}</button>
-              <button type='button' className='btn-outline' disabled={saving} onClick={()=>{ try { setText(JSON.stringify(JSON.parse(text), null, 2)); } catch { setError('Cannot format invalid JSON'); } }}>Format</button>
-              <button type='button' className='btn-outline' disabled={saving} onClick={()=>{ setEdit(false); setError(null); setText(JSON.stringify(record.script, null, 2)); }}>Cancel</button>
+              {editMode==='json' && (
+                <button type='button' className='btn-outline' disabled={saving} onClick={()=>{ try { setText(JSON.stringify(JSON.parse(text), null, 2)); } catch { setError('Cannot format invalid JSON'); } }}>Format</button>
+              )}
+              <button type='button' className='btn-outline' disabled={saving} onClick={()=>{ setEdit(false); setError(null); setText(JSON.stringify(record.script, null, 2)); setDraft(record.script as ScriptT); }}>Cancel</button>
             </div>
           </div>
         )}
@@ -141,6 +160,39 @@ function SessionsList({ sessions, loading }: { sessions:any[]; loading:boolean }
         <div key={s.id} className='card' style={{padding:'0.75rem 1rem'}}>
           <div style={{fontSize:'0.7rem', fontWeight:600}}>Session {s.id.slice(0,6)}</div>
           <div style={{fontSize:'0.55rem', color:'var(--foreground-soft)'}}>{new Date(s.createdAt).toLocaleString()}</div>
+          {/* Answers to questions */}
+          {Array.isArray(s?.transcript) && s.transcript.length>0 && (()=>{
+            const groupedBySection: Record<string, string[]> = s.transcript.reduce(
+              (acc: Record<string, string[]>, u: any) => {
+                if (u && u.speaker === 'candidate' && u.sectionId) {
+                  const key = String(u.sectionId);
+                  if (!acc[key]) acc[key] = [];
+                  if (u.text) acc[key].push(String(u.text));
+                }
+                return acc;
+              },
+              {} as Record<string, string[]>
+            );
+            return (
+              <div style={{marginTop:8, display:'grid', gap:6}}>
+                {Object.entries(groupedBySection).map(([sectionId, answers]) => (
+                  <div key={sectionId} style={{display:'grid', gap:4}}>
+                    <div style={{fontSize:'0.6rem', fontWeight:600}}>Q: {sectionId}</div>
+                    <div style={{display:'grid', gap:4}}>
+                      {answers.slice(0, 3).map((ans: string, idx: number) => (
+                        <div key={idx} style={{fontSize:'0.55rem', color:'#1e2a3b'}}>
+                          {ans.length > 220 ? ans.slice(0, 220) + '…' : ans}
+                        </div>
+                      ))}
+                      {answers.length > 3 && (
+                        <div style={{fontSize:'0.5rem', color:'var(--foreground-soft)'}}>+{answers.length - 3} more</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       ))}
     </div>

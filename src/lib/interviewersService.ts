@@ -86,7 +86,7 @@ export type FinishedAttempt = {
 	startedAt: number;
 	endedAt: number;
 	durationSec: number;
-	participant?: { name?: string; email?: string; phone?: string } | null;
+  participant?: { name?: string; email?: string } | null;
 	transcript: any[]; // keep raw for now
 	sections: any[];
 	artifacts?: any;
