@@ -10,7 +10,7 @@ export default function DashboardDetailPage({ params }: { params: Promise<{ slug
   // unwrap promise-based params (Next.js 15+)
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const { slug } = React.use(params);
-  const user = auth.currentUser;
+  const user = auth?.currentUser;
   const [record,setRecord]=useState<InterviewerRecord|null>(null);
   const [recordLoading,setRecordLoading]=useState(true);
   const [loadError,setLoadError]=useState<string|null>(null);
