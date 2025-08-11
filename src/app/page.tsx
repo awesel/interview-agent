@@ -13,7 +13,7 @@ export default function Home() {
   return (
     <main style={{padding:"4rem 1.5rem", textAlign:"center"}}>
       <div className="card" style={{maxWidth:640, margin:"0 auto"}}>
-        <h1 style={{fontSize:"2.3rem", fontWeight:700, marginBottom:"1rem"}}>AI Interviewer</h1>
+        <h1 style={{fontSize:"2.3rem", fontWeight:700, marginBottom:"1rem"}}>OpenEar</h1>
         <p style={{fontSize:"0.95rem", color:"var(--foreground-soft)", marginBottom:"1.25rem"}}>Generating adaptive follow-ups & playful candidate experiences.</p>
         <div style={{display:"flex", gap:"0.75rem", justifyContent:"center"}}>
           <a className="btn" href="/login">Get Started</a>

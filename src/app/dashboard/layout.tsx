@@ -27,7 +27,7 @@ function DashboardNav(){
 	return (
 		<nav style={{height:56, position:'sticky', top:0, zIndex:40, backdropFilter:'blur(8px)', background:'#ffffffee', borderBottom:'1px solid #d4e6f9', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 1rem', gap:16}}>
 			<div style={{display:'flex', alignItems:'center', gap:18}}>
-				<Link href="/dashboard" style={{fontWeight:700, fontSize:'1rem', textDecoration:'none', color:'inherit'}}>Interview Agent</Link>
+				<Link href="/dashboard" style={{fontWeight:700, fontSize:'1rem', textDecoration:'none', color:'inherit'}}>OpenEar</Link>
 				<NavLink href="/dashboard" label="Show All" active={isAll} />
 				<NavLink href="/dashboard/create" label="Create +" active={isCreate} hide={isCreate} />
 			</div>

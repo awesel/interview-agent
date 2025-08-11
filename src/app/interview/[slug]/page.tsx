@@ -102,7 +102,7 @@ export default function SharedInterview({ params }: { params: Promise<{ slug: st
         <div style={{fontWeight:700, fontSize:'0.95rem'}}>{script.title}</div>
         <div style={{fontSize:'0.55rem', color:'#4c6c8f', display:'flex', gap:12, alignItems:'center'}}>
           {st.session?.endedAt && <span style={{color:'#1a7f37'}}>Saving…</span>}
-          <span>Powered by AI Interview Agent</span>
+          <span>Powered by OpenEar</span>
         </div>
       </header>
       <div style={{position:'relative'}}>
@@ -113,7 +113,7 @@ export default function SharedInterview({ params }: { params: Promise<{ slug: st
         )}
         <ScriptedInterviewPage script={script} />
       </div>
-      <footer style={{fontSize:'0.55rem', color:'#4c6c8f', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 1rem', background:'#ffffffdd', borderTop:'1px solid #d4e6f9'}}>© {new Date().getFullYear()} Interview Agent</footer>
+      <footer style={{fontSize:'0.55rem', color:'#4c6c8f', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 1rem', background:'#ffffffdd', borderTop:'1px solid #d4e6f9'}}>© {new Date().getFullYear()} OpenEar</footer>
     </div>
   );
 }

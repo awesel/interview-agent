@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Interview Agent",
+  title: "OpenEar",
   description: "MVP for interview workflows",
 };
 

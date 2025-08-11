@@ -165,7 +165,7 @@ function TopBar(){
   return (
     <div style={{height:56, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 1rem', borderBottom:'1px solid #d4e6f9', background:'#ffffffdd', backdropFilter:'blur(8px)', position:'sticky', top:0, zIndex:30}}>
       <div style={{display:'flex', alignItems:'center', gap:14}}>
-        <a href='/dashboard' style={{fontWeight:700, fontSize:'1rem', textDecoration:'none', color:'inherit'}}>Interview Agent</a>
+        <a href='/dashboard' style={{fontWeight:700, fontSize:'1rem', textDecoration:'none', color:'inherit'}}>OpenEar</a>
         <a href='/dashboard' className='btn-outline' style={{fontSize:'0.6rem', textDecoration:'none'}}>View All</a>
         <a href='/dashboard/create' className='btn-outline' style={{fontSize:'0.6rem', textDecoration:'none'}}>Create</a>
       </div>

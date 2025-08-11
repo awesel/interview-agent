@@ -37,7 +37,7 @@ export default function CandidateSignup(){
         )}
         <div style={{fontSize:'0.6rem', color:'#215781'}}>Recruiters: <Link href='/signup/interviewer' style={{color:'#0d4d8f'}}>Interviewer portal</Link></div>
       </section>
-      <footer style={{padding:'1rem', fontSize:'0.55rem', textAlign:'center', color:'var(--foreground-soft)'}}>© {new Date().getFullYear()} Interview Agent</footer>
+      <footer style={{padding:'1rem', fontSize:'0.55rem', textAlign:'center', color:'var(--foreground-soft)'}}>© {new Date().getFullYear()} OpenEar</footer>
     </main>
   );
 }
