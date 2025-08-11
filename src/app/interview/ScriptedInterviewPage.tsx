@@ -151,6 +151,7 @@ function CandidateInput({ isVoiceMode, conversationId }: { isVoiceMode: boolean;
             onTranscription={handleVoiceTranscription}
             conversationId={conversationId || undefined}
             disabled={!conversationId}
+            pushToTalk={true}
           />
           {!conversationId && (
             <p className="text-sm text-gray-500 mt-2">Initializing voice conversation...</p>
