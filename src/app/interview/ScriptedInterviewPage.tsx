@@ -73,7 +73,7 @@ export default function ScriptedInterviewPage({ script }: { script?: ScriptT }) 
       <section className="space-y-4">
         <h1 className="text-2xl font-semibold">{st.session.script.title}</h1>
         <div className="text-lg">Section: {sec.id}</div>
-        <div className="text-5xl tabular-nums">{st.timeLeftSec}s</div>
+  {/* Timer hidden to keep timing implicit */}
 
         <div className="p-4 rounded-xl border">
           <div className="font-medium mb-2">Question</div>
