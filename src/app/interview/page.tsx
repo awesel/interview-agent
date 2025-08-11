@@ -8,7 +8,7 @@ import VoiceRecorder from "@/components/VoiceRecorder";
 import AudioPlayer from "@/components/AudioPlayer";
 import { useVoiceInterview } from "@/hooks/useVoiceInterview";
 
-export default function InterviewPage({ script, interviewerId, manualSave }: { script?: ScriptT; interviewerId?: string; manualSave?: () => void | Promise<void> }) {
+export default function InterviewPage() {
   const st = useInterview();
   const [ready, setReady] = useState(false);
   const [info, setInfo] = useState({ name: "", email: "" });
@@ -18,7 +18,7 @@ export default function InterviewPage({ script, interviewerId, manualSave }: { s
 
   useEffect(() => {
     if (!st.session) {
-      const sc = script ? script : Script.parse(hello);
+      const sc = Script.parse(hello);
       st.start(sc);
     }
     const id = setInterval(() => st.tick(), 1000);
@@ -101,7 +101,7 @@ export default function InterviewPage({ script, interviewerId, manualSave }: { s
           <button className="btn" onClick={() => st.nudgeOrAdvance()}>Force Next</button>
           <button className="btn" onClick={() => downloadJSON(st.session!)}>Export JSON</button>
           <button className="btn" onClick={() => summarize(st.session?.transcript ?? [], st.setArtifacts)}>Finish & Summarize</button>
-          <button className="btn" onClick={() => { st.finish(); manualSave?.(); }}>Finish Interview</button>
+          <button className="btn" onClick={() => st.finish()}>Finish Interview</button>
         </div>
       </section>
 
