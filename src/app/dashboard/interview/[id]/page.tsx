@@ -5,14 +5,8 @@ import { listSessions, getBySlug, listInterviewers, InterviewerRecord, updateInt
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
-export default function InterviewDetailPage(){
-  const router = useRouter();
-  const params = useParams();
-  const slug = params?.id as string;
-  const user = auth.currentUser;
-  const [interview, setInterview] = useState<InterviewerRecord|null>(null);
-  const [loading, setLoading] = useState(true);
-  interface Session {
+// Local display session type
+type DisplaySession = {
   id: string;
   createdAt: string;
   transcript?: Array<{
@@ -20,9 +14,18 @@ export default function InterviewDetailPage(){
     text?: string;
     sectionId?: string;
   }>;
-}
+};
 
-const [sessions, setSessions] = useState<Session[]>([]);
+export default function InterviewDetailPage(){
+  const router = useRouter();
+  const params = useParams();
+  const slug = params?.id as string;
+  const user = auth?.currentUser;
+  const [interview, setInterview] = useState<InterviewerRecord|null>(null);
+  const [loading, setLoading] = useState(true);
+
+
+const [sessions, setSessions] = useState<DisplaySession[]>([]);
   const [tab, setTab] = useState<'overview'|'sessions'|'results'>('overview');
   const [editName, setEditName] = useState('');
   const [editJson, setEditJson] = useState('');
@@ -30,7 +33,7 @@ const [sessions, setSessions] = useState<Session[]>([]);
   const [error, setError] = useState<string|null>(null);
 
   useEffect(()=>{
-    const active = true;
+    let active = true;
     async function load(){
       if(!user){ setLoading(false); return; }
       // Try slug lookup first
@@ -40,8 +43,12 @@ const [sessions, setSessions] = useState<Session[]>([]);
         setInterview(bySlug);
         setEditName(bySlug.name);
         setEditJson(JSON.stringify(bySlug.script, null, 2));
-        const sess = await listSessions(bySlug.id, 50);
-        if(active) setSessions(sess);
+        const attempts = await listSessions(bySlug.id, 50);
+        if(active) setSessions(attempts.map(a => ({
+          id: a.interviewerId,
+          createdAt: String(a.createdAt),
+          transcript: a.transcript
+        })));
       } else {
         // fallback: maybe slug is actually id (list & match)
         const list = await listInterviewers(user.uid);
@@ -50,8 +57,12 @@ const [sessions, setSessions] = useState<Session[]>([]);
           setInterview(match);
           setEditName(match.name);
           setEditJson(JSON.stringify(match.script, null, 2));
-          const sess = await listSessions(match.id, 50);
-          if(active) setSessions(sess);
+          const attempts = await listSessions(match.id, 50);
+          if(active) setSessions(attempts.map(a => ({
+            id: a.interviewerId,
+            createdAt: String(a.createdAt),
+            transcript: a.transcript
+          })));
         }
       }
       if(active) setLoading(false);
@@ -68,7 +79,7 @@ const [sessions, setSessions] = useState<Session[]>([]);
       await updateInterviewer(interview.id, { name: editName, script: parsed });
       setInterview({...interview, name: editName, script: parsed});
     } catch(e){
-      setError(e.message||'Failed');
+      setError((e as Error)?.message || 'Failed');
     } finally { setSaving(false); }
   }
 
@@ -120,7 +131,7 @@ const [sessions, setSessions] = useState<Session[]>([]);
                         <div style={{fontSize:'0.55rem', color:'var(--foreground-soft)'}}>{new Date(s.createdAt).toLocaleString()}</div>
                         {Array.isArray(s?.transcript) && s.transcript.length>0 && (()=>{
                           const groupedBySection: Record<string, string[]> = s.transcript.reduce(
-                            (acc: Record<string, string[]>, u: Session['transcript'][0]) => {
+                            (acc: Record<string, string[]>, u) => {
                               if (u && u.speaker === 'candidate' && u.sectionId) {
                                 const key = String(u.sectionId);
                                 if (!acc[key]) acc[key] = [];
@@ -185,10 +196,10 @@ function TopBar(){
 }
 
 interface SidebarProps {
-  interview: InterviewerRecord;
+  interview: InterviewerRecord | null;
   tab: 'overview' | 'sessions' | 'results';
   setTab: (tab: 'overview' | 'sessions' | 'results') => void;
-  sessions: Session[];
+  sessions: DisplaySession[];
   shareLink: (slug: string) => string;
 }
 

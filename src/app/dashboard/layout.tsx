@@ -60,9 +60,9 @@ function InterviewSwitcher({ activeSlug }: { activeSlug:string }){
 	const [loading,setLoading]=useState(true);
 	const router = useRouter();
 	useEffect(()=>{ 
-		const cancelled = false; 
+		let cancelled = false; 
 		async function load(){ 
-			const user=auth.currentUser; 
+			const user=auth?.currentUser; 
 			if(!user){ setLoading(false); return;} 
 			try { 
 				const items= await listInterviewers(user.uid); 
@@ -83,7 +83,7 @@ function InterviewSwitcher({ activeSlug }: { activeSlug:string }){
 }
 
 function ProfilePill(){
-	const user = auth.currentUser;
+	const user = auth?.currentUser;
 	const router = useRouter();
 	const [open,setOpen]=useState(false);
 	const ref = useRef<HTMLDivElement|null>(null);
@@ -97,7 +97,7 @@ function ProfilePill(){
 	if(!user) return null;
 	const label = user.displayName || user.email || 'You';
 	async function doLogout(){
-		await signOut(auth);
+		if (auth) await signOut(auth);
 		router.push('/signup/interviewer');
 	}
 	return (

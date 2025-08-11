@@ -5,7 +5,7 @@ import { collection, query, where, getDocs, limit } from "firebase/firestore";
 import { createFinishedAttempt } from "@/lib/interviewersService";
 import { useRouter } from "next/navigation";
 import hello from "@/../scripts/hello.json";
-import { Script, ScriptT } from "@/lib/types";
+import { Script, ScriptT, Utterance, Session } from "@/lib/types";
 import ScriptedInterviewPage from "../ScriptedInterviewPage"; // reuse existing interactive component for now
 import { useInterview } from "@/lib/interviewStore";
 
@@ -25,15 +25,16 @@ export default function SharedInterview({ params }: { params: Promise<{ slug: st
 
   // Optional auth observer: do not force redirect; allow viewing/interview without sign-in
   useEffect(()=>{
-    const unsub = auth.onAuthStateChanged(_u=>{
+    const unsub = auth?.onAuthStateChanged(_u=>{
       setAuthChecked(true);
-    });
+    }) || (() => {});
     return ()=>unsub();
   },[slug]);
 
   useEffect(() => {
     async function load() {
       try {
+        if (!db) throw new Error('Firestore not initialized');
         const q = query(collection(db, "interviewers"), where("slug", "==", slug), limit(1));
         const snap = await getDocs(q);
         if (snap.empty) {
@@ -84,10 +85,10 @@ const data = dref.data() as InterviewerData;
           startedAt: number;
           endedAt: number;
           durationSec: number;
-          participant: unknown | null;
-          transcript: unknown[];
-          sections: unknown[];
-          artifacts: unknown | null;
+          participant: { name?: string; email?: string; } | null;
+          transcript: Utterance[];
+          sections: Session['sections'];
+          artifacts: Session['artifacts'];
           createdAt: number;
         }
 
@@ -96,12 +97,12 @@ const data = dref.data() as InterviewerData;
           interviewerSlug: slug,
           scriptTitle: s.script.title,
           startedAt: s.startedAt,
-          endedAt: s.endedAt,
+          endedAt: s.endedAt || Date.now(),
           durationSec: s.endedAt ? Math.max(0, Math.round((s.endedAt - s.startedAt)/1000)) : 0,
           participant: s.participant || null,
           transcript: s.transcript,
           sections: s.sections,
-          artifacts: s.artifacts || null,
+          artifacts: s.artifacts,
           createdAt: Date.now(),
         };
         const id = await createFinishedAttempt(attempt);

@@ -7,7 +7,7 @@ import ScriptForm from '@/components/ScriptForm';
 import { ScriptT } from '@/lib/types';
 
 export default function CreateInterviewPage(){
-  const user = auth.currentUser;
+  const user = auth?.currentUser;
   const router = useRouter();
   const [name, setName] = useState("");
   const [script, setScript] = useState<ScriptT | null>(null);
@@ -19,11 +19,11 @@ export default function CreateInterviewPage(){
     setCreating(true); setError(null);
     try {
       const existing = await listInterviewers(user.uid);
-      const payload: ScriptT = script || { title: name || 'Untitled Interview', sections: [], type: 'interview' };
+      const payload: ScriptT = script || { title: name || 'Untitled Interview', sections: [] };
       await svcCreate({ ownerUid: user.uid, name, script: payload, order: existing.length });
       router.replace('/dashboard');
     } catch(e){
-      setError(e.message||'Failed');
+      setError((e as Error)?.message || 'Failed');
     } finally { setCreating(false); }
   }
 

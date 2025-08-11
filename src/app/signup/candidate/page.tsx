@@ -7,16 +7,21 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
 export default function CandidateSignup(){
+  if (!app) throw new Error('Firebase app not initialized');
   const auth = getAuth(app);
   const sp = useSearchParams();
   const [user,setUser]=useState<import('firebase/auth').User|null>(auth.currentUser);
-  useEffect(()=> onAuthStateChanged(auth,u=>setUser(u)),[auth]);
+  useEffect(()=> {
+    const unsub = onAuthStateChanged(auth, u=>setUser(u));
+    return () => unsub();
+  },[auth]);
   const nextPath = sp.get('next') || (typeof window!=='undefined' ? sessionStorage.getItem('candidate_next') || '' : '') || '/';
 
   async function signIn(){
     const provider = new GoogleAuthProvider();
     const res = await signInWithPopup(auth, provider);
     const u = res.user;
+    if (!db) throw new Error('Firestore not initialized');
     await setDoc(doc(db,'users',u.uid), { uid:u.uid, email:u.email||'', displayName:u.displayName||'', roles:['candidate'], lastLoginAt:Date.now(), createdAt: Date.now(), provider:'google' }, {merge:true});
     const next = sp.get('next') || sessionStorage.getItem('candidate_next') || '/';
     window.location.href = next;

@@ -10,16 +10,16 @@ export default function DashboardIndexPage(){
   const [authReady,setAuthReady]=useState(false);
   const dragId = useRef<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [user,setUser]=useState(()=>auth.currentUser);
+  const [user,setUser]=useState(()=>auth?.currentUser);
   // subscribe to auth changes for reliability
   useEffect(()=>{
-    const unsub = auth.onAuthStateChanged(u=>{ setUser(u); setAuthReady(true); });
+    const unsub = auth?.onAuthStateChanged(u=>{ setUser(u); setAuthReady(true); }) || (() => {});
     return ()=>unsub();
   },[]);
   // polling loader (simple) – could be replaced with snapshot listener later
   useEffect(()=>{
     if(!user) return;
-    const active=true;
+    let active=true;
     let timer: ReturnType<typeof setTimeout>;
     async function load(){
       if(!active) return;
